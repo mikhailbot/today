@@ -26,6 +26,11 @@ enum DayKey {
         return Self.key(for: date, calendar: calendar)
     }
 
+    /// Whole days from one key to another; negative when `to` is earlier.
+    static func days(from: String, to: String, calendar: Calendar = .current) -> Int {
+        calendar.dateComponents([.day], from: date(for: from, calendar: calendar), to: date(for: to, calendar: calendar)).day ?? 0
+    }
+
     /// The first Monday strictly after the given day.
     static func nextMonday(after key: String, calendar: Calendar = .current) -> String {
         let next = calendar.nextDate(after: date(for: key, calendar: calendar),

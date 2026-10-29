@@ -16,14 +16,18 @@ struct DayView: View {
 
     var body: some View {
         NavigationStack {
-            DayList(day: $day, today: today,
-                    onMove: move,
-                    onPickMove: { movingTask = $0 },
-                    onPickEvent: { shownEvent = ShownEvent(event: $0) },
-                    onPickDate: { showDatePicker = true },
-                    onSettings: { showSettings = true })
-                .toolbar(.hidden, for: .navigationBar)
-                .overlay(alignment: .bottom) { toast }
+            VStack(spacing: 0) {
+                DayTop(day: $day, today: today,
+                       onPickDate: { showDatePicker = true },
+                       onSettings: { showSettings = true })
+                DayPager(day: $day, today: today,
+                         onMove: move,
+                         onPickMove: { movingTask = $0 },
+                         onPickEvent: { shownEvent = ShownEvent(event: $0) })
+            }
+            .background(Color(.systemGroupedBackground))
+            .toolbar(.hidden, for: .navigationBar)
+            .overlay(alignment: .bottom) { toast }
         }
         .sheet(isPresented: $showDatePicker) { datePicker }
         .sheet(isPresented: $showSettings) { SettingsView() }
@@ -129,55 +133,110 @@ struct LastMove {
     let to: String
 }
 
-/// The scrolling day: header, week strip, events, leftovers and tasks.
-private struct DayList: View {
+/// The header and week strip, pinned above the day pages.
+private struct DayTop: View {
+    @Binding var day: String
+    let today: String
+    let onPickDate: () -> Void
+    let onSettings: () -> Void
+
+    @Query private var openThisWeek: [TaskItem]
+
+    init(day: Binding<String>, today: String, onPickDate: @escaping () -> Void, onSettings: @escaping () -> Void) {
+        _day = day
+        self.today = today
+        self.onPickDate = onPickDate
+        self.onSettings = onSettings
+        let week = DayKey.week(containing: day.wrappedValue)
+        _openThisWeek = Query(filter: #Predicate<TaskItem> { $0.isDone == false && week.contains($0.day) })
+    }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            DayHeader(day: $day, today: today, onPickDate: onPickDate, onSettings: onSettings)
+            WeekStrip(day: $day, today: today, busyDays: Set(openThisWeek.map(\.day)))
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 6)
+        .padding(.bottom, 4)
+    }
+}
+
+/// Day pages side by side; swiping pages one day at a time, like Calendar.
+private struct DayPager: View {
     @Binding var day: String
     let today: String
     let onMove: (TaskItem, String) -> Void
     let onPickMove: (TaskItem) -> Void
     let onPickEvent: (EKEvent) -> Void
-    let onPickDate: () -> Void
-    let onSettings: () -> Void
+
+    /// Pages are days counted from here, so their ids stay put as `day` moves.
+    @State private var anchor = DayKey.today()
+    @State private var page: Int?
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            LazyHStack(spacing: 0) {
+                ForEach(-3650...3650, id: \.self) { n in
+                    DayPage(day: DayKey.adding(n, to: anchor), today: today,
+                            onMove: onMove, onPickMove: onPickMove, onPickEvent: onPickEvent)
+                        .containerRelativeFrame(.horizontal)
+                }
+            }
+            .scrollTargetLayout()
+        }
+        .scrollTargetBehavior(.paging)
+        .scrollIndicators(.hidden)
+        .scrollPosition(id: $page)
+        .onAppear { page = DayKey.days(from: anchor, to: day) }
+        .onChange(of: page) { _, page in
+            guard let page else { return }
+            let key = DayKey.adding(page, to: anchor)
+            if key != day { day = key }
+        }
+        .onChange(of: day) { _, day in
+            let target = DayKey.days(from: anchor, to: day)
+            guard let page, target != page else { return }
+            // Slide to nearby days; jump straight to far ones.
+            if abs(target - page) < 7 {
+                withAnimation(WeekStrip.slide) { self.page = target }
+            } else {
+                self.page = target
+            }
+        }
+    }
+}
+
+/// One day's events, leftovers and tasks.
+private struct DayPage: View {
+    let day: String
+    let today: String
+    let onMove: (TaskItem, String) -> Void
+    let onPickMove: (TaskItem) -> Void
+    let onPickEvent: (EKEvent) -> Void
 
     @Query private var tasks: [TaskItem]
-    @Query private var openThisWeek: [TaskItem]
     @Query(sort: \TaskItem.createdAt) private var leftovers: [TaskItem]
     @AppStorage("leftoversHiddenOn") private var leftoversHiddenOn = ""
 
-    init(day: Binding<String>, today: String,
+    init(day: String, today: String,
          onMove: @escaping (TaskItem, String) -> Void,
          onPickMove: @escaping (TaskItem) -> Void,
-         onPickEvent: @escaping (EKEvent) -> Void,
-         onPickDate: @escaping () -> Void,
-         onSettings: @escaping () -> Void) {
-        _day = day
+         onPickEvent: @escaping (EKEvent) -> Void) {
+        self.day = day
         self.today = today
         self.onMove = onMove
         self.onPickMove = onPickMove
         self.onPickEvent = onPickEvent
-        self.onPickDate = onPickDate
-        self.onSettings = onSettings
 
-        let key = day.wrappedValue
-        let week = DayKey.week(containing: key)
         let yesterday = DayKey.adding(-1, to: today)
-        _tasks = Query(filter: #Predicate<TaskItem> { $0.day == key })
-        _openThisWeek = Query(filter: #Predicate<TaskItem> { $0.isDone == false && week.contains($0.day) })
+        _tasks = Query(filter: #Predicate<TaskItem> { $0.day == day })
         _leftovers = Query(filter: #Predicate<TaskItem> { $0.day == yesterday && $0.isDone == false },
                            sort: \TaskItem.createdAt)
     }
 
     var body: some View {
         List {
-            Section {
-                DayHeader(day: $day, today: today, onPickDate: onPickDate, onSettings: onSettings)
-                    .listRowInsets(EdgeInsets(top: 6, leading: 4, bottom: 4, trailing: 4))
-                WeekStrip(day: $day, today: today, busyDays: Set(openThisWeek.map(\.day)))
-            }
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
-            .listRowSeparator(.hidden)
-
             EventsSection(day: day, today: today, onPickEvent: onPickEvent)
 
             if day == today && !leftovers.isEmpty && leftoversHiddenOn != today {
@@ -226,7 +285,7 @@ private struct DayHeader: View {
             Spacer()
             HStack(spacing: 16) {
                 if day != today {
-                    Button("Today") { withAnimation { day = today } }
+                    Button("Today") { day = today }
                         .font(.subheadline.weight(.semibold))
                 }
                 Button(action: onPickDate) {
@@ -250,51 +309,84 @@ private struct WeekStrip: View {
     let today: String
     let busyDays: Set<String>
     @ScaledMetric private var circle: CGFloat = 36
-    /// The week on screen; trails `day` so the old week can slide out in the right direction.
-    @State private var shownStart: String?
-    @State private var forward = true
-    @GestureState private var drag: CGFloat = 0
+    @State private var width: CGFloat = 0
+    /// How far the weeks are pulled sideways; the previous and next weeks sit just off screen.
+    @State private var offset: CGFloat = 0
+    /// The day the strip is drawn around; lags `day` while a week slides in.
+    @State private var shownDay: String?
+
+    /// Unhurried and without overshoot, like Calendar.
+    static let slide = Animation.spring(duration: 0.5, bounce: 0)
 
     var body: some View {
-        let start = shownStart ?? DayKey.week(containing: day)[0]
-        ZStack {
-            HStack(spacing: 0) {
-                ForEach(DayKey.week(containing: start), id: \.self) { key in
-                    cell(key)
+        page(0)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+            .overlay { page(-1).offset(x: -width) }
+            .overlay { page(1).offset(x: width) }
+            .offset(x: offset)
+            .clipped()
+            .contentShape(Rectangle())
+            .highPriorityGesture(DragGesture(minimumDistance: 20)
+                .onChanged { value in
+                    if abs(value.translation.width) > abs(value.translation.height) {
+                        offset = value.translation.width
+                    }
+                }
+                .onEnded { value in
+                    let dx = value.predictedEndTranslation.width
+                    guard abs(dx) > width / 2, abs(value.translation.width) > abs(value.translation.height) else {
+                        withAnimation(Self.slide) { offset = 0 }
+                        return
+                    }
+                    let step = dx < 0 ? 1 : -1
+                    slide(step) { day = DayKey.adding(step * 7, to: day) }
+                })
+            .onChange(of: day) { _, new in
+                let shown = shownDay ?? new
+                let from = DayKey.week(containing: shown)[0]
+                let to = DayKey.week(containing: new)[0]
+                guard offset == 0, from != to else {
+                    if offset == 0 { shownDay = new }
+                    return
+                }
+                // Paged into the next or previous week: slide it in. Further jumps just switch.
+                let step = to > from ? 1 : -1
+                if DayKey.adding(step * 7, to: from) == to {
+                    slide(step) {}
+                } else {
+                    shownDay = new
                 }
             }
-            .id(start)
-            .transition(.asymmetric(insertion: .move(edge: forward ? .trailing : .leading),
-                                    removal: .move(edge: forward ? .leading : .trailing)))
-        }
-        .offset(x: drag)
-        .clipped()
-        .contentShape(Rectangle())
-        .gesture(DragGesture(minimumDistance: 20)
-            .updating($drag) { value, drag, _ in
-                if abs(value.translation.width) > abs(value.translation.height) {
-                    drag = value.translation.width / 3
-                }
-            }
-            .onEnded { value in
-                let dx = value.translation.width
-                guard abs(dx) > 50, abs(dx) > abs(value.translation.height) else { return }
-                withAnimation { day = DayKey.adding(dx < 0 ? 7 : -7, to: day) }
-            })
-        .animation(.snappy, value: drag)
-        .onChange(of: DayKey.week(containing: day)[0]) { old, new in
-            forward = new > old
-            withAnimation(.snappy) { shownStart = new }
+    }
+
+    /// Slides the neighbouring week in, then redraws around it with nothing moving.
+    private func slide(_ step: Int, then: @escaping () -> Void) {
+        withAnimation(Self.slide, completionCriteria: .removed) {
+            offset = CGFloat(-step) * width
+        } completion: {
+            then()
+            shownDay = day
+            offset = 0
         }
     }
 
-    private func cell(_ key: String) -> some View {
+    /// The week `weeks` away from the shown one. A week holding `day` selects it; a neighbour
+    /// otherwise previews the same weekday.
+    private func page(_ weeks: Int) -> some View {
+        let start = DayKey.adding(weeks * 7, to: shownDay ?? day)
+        let keys = DayKey.week(containing: start)
+        let picked = keys.contains(day) ? day : weeks == 0 ? nil : start
+        return HStack(spacing: 0) {
+            ForEach(keys, id: \.self) { cell($0, selected: $0 == picked) }
+        }
+    }
+
+    private func cell(_ key: String, selected: Bool) -> some View {
         let date = DayKey.date(for: key)
         let calendar = Calendar.current
         let letter = calendar.veryShortStandaloneWeekdaySymbols[calendar.component(.weekday, from: date) - 1]
-        let selected = key == day
         return Button {
-            withAnimation { day = key }
+            day = key
         } label: {
             VStack(spacing: 4) {
                 Text(letter)
