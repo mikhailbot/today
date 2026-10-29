@@ -250,19 +250,42 @@ private struct WeekStrip: View {
     let today: String
     let busyDays: Set<String>
     @ScaledMetric private var circle: CGFloat = 36
+    /// The week on screen; trails `day` so the old week can slide out in the right direction.
+    @State private var shownStart: String?
+    @State private var forward = true
+    @GestureState private var drag: CGFloat = 0
 
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(DayKey.week(containing: day), id: \.self) { key in
-                cell(key)
+        let start = shownStart ?? DayKey.week(containing: day)[0]
+        ZStack {
+            HStack(spacing: 0) {
+                ForEach(DayKey.week(containing: start), id: \.self) { key in
+                    cell(key)
+                }
             }
+            .id(start)
+            .transition(.asymmetric(insertion: .move(edge: forward ? .trailing : .leading),
+                                    removal: .move(edge: forward ? .leading : .trailing)))
         }
+        .offset(x: drag)
+        .clipped()
         .contentShape(Rectangle())
-        .gesture(DragGesture(minimumDistance: 20).onEnded { value in
-            let dx = value.translation.width
-            guard abs(dx) > 50, abs(dx) > abs(value.translation.height) else { return }
-            withAnimation { day = DayKey.adding(dx < 0 ? 7 : -7, to: day) }
-        })
+        .gesture(DragGesture(minimumDistance: 20)
+            .updating($drag) { value, drag, _ in
+                if abs(value.translation.width) > abs(value.translation.height) {
+                    drag = value.translation.width / 3
+                }
+            }
+            .onEnded { value in
+                let dx = value.translation.width
+                guard abs(dx) > 50, abs(dx) > abs(value.translation.height) else { return }
+                withAnimation { day = DayKey.adding(dx < 0 ? 7 : -7, to: day) }
+            })
+        .animation(.snappy, value: drag)
+        .onChange(of: DayKey.week(containing: day)[0]) { old, new in
+            forward = new > old
+            withAnimation(.snappy) { shownStart = new }
+        }
     }
 
     private func cell(_ key: String) -> some View {
