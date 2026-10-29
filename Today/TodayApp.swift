@@ -6,8 +6,12 @@ struct TodayApp: App {
     @State private var calendar = CalendarStore()
 
     let container: ModelContainer = {
-        // Syncs through the private CloudKit database when the app is signed with iCloud, local otherwise.
+        #if ICLOUD_SYNC
+        // Syncs through the private CloudKit database. Needs the iCloud capability (paid developer account).
         let config = ModelConfiguration(cloudKitDatabase: .automatic)
+        #else
+        let config = ModelConfiguration(cloudKitDatabase: .none)
+        #endif
         do {
             return try ModelContainer(for: TaskItem.self, configurations: config)
         } catch {

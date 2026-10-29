@@ -52,6 +52,7 @@ All built-in frameworks, iOS 17+, iPhone only (`TARGETED_DEVICE_FAMILY = 1`).
 - **SwiftData + CloudKit** (private database) for tasks.
   - Turn on the iCloud capability with a CloudKit container, plus Background Modes → Remote notifications.
   - CloudKit-backed models need every property optional or defaulted, and no `@Attribute(.unique)`.
+  - **Turning on iCloud sync.** v1 builds store tasks on the device only, so the app signs with a free Personal Team. Sync needs a paid Apple Developer Program membership. Then, in Signing & Capabilities, add iCloud (CloudKit, with your container) and Background Modes → Remote notifications (`Today/Today-iCloud.entitlements.disabled` has the matching entitlements), and add `ICLOUD_SYNC` to Active Compilation Conditions. Tasks created before sync is turned on are not lost: the sync build opens the same on-device store and uploads the tasks already in it. That only holds while the bundle ID stays the same; a new bundle ID is a new app with an empty store.
 
 ### Data model
 

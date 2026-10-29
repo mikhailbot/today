@@ -24,11 +24,19 @@ struct SettingsView: View {
                     }
                 }
                 Section {
+                    #if ICLOUD_SYNC
                     LabeledContent("iCloud sync", value: FileManager.default.ubiquityIdentityToken != nil ? "On" : "Off")
+                    #else
+                    LabeledContent("iCloud sync", value: "Off")
+                    #endif
                 } header: {
                     Text("Tasks")
                 } footer: {
+                    #if ICLOUD_SYNC
                     Text("Tasks sync with the iCloud account signed in on this iPhone. Change it in the Settings app.")
+                    #else
+                    Text("Tasks are stored on this iPhone only.")
+                    #endif
                 }
             }
             .navigationTitle("Settings")
