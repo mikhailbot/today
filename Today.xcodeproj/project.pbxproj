@@ -25,6 +25,7 @@
 		A10000000000000000000008 /* Exceptions for "Today" folder in "Today" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Info.plist,
 				"Today-iCloud.entitlements.disabled",
 			);
 			target = A10000000000000000000010 /* Today */;
@@ -321,7 +322,7 @@
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Today shows events from your calendars next to your tasks. Events are only read, never changed.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_FILE = Today/Info.plist;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -350,7 +351,7 @@
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Today shows events from your calendars next to your tasks. Events are only read, never changed.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_FILE = Today/Info.plist;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
