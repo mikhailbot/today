@@ -7,10 +7,7 @@ struct WelcomeView: View {
     var body: some View {
         VStack(spacing: 24) {
             Spacer()
-            Image(systemName: "calendar.badge.checkmark")
-                .font(.system(size: 72))
-                .foregroundStyle(.tint)
-                .accessibilityHidden(true)
+            AppMark(size: 96)
             VStack(spacing: 12) {
                 Text("Your day, in one place")
                     .font(.largeTitle.bold())
@@ -38,5 +35,22 @@ struct WelcomeView: View {
         }
         .padding(24)
         .background(Color(.systemGroupedBackground))
+    }
+}
+
+/// The app icon's now-line mark on an icon-shaped tile.
+struct AppMark: View {
+    let size: CGFloat
+
+    var body: some View {
+        let tile = RoundedRectangle(cornerRadius: size * 0.225, style: .continuous)
+        Image("LaunchMark")
+            .resizable()
+            .scaledToFit()
+            .padding(size * 0.175)
+            .frame(width: size, height: size)
+            .background(Color(.systemBackground), in: tile)
+            .overlay(tile.stroke(Color(.separator), lineWidth: 0.5))
+            .accessibilityHidden(true)
     }
 }

@@ -182,9 +182,7 @@ private struct AboutView: View {
         List {
             Section {
                 VStack(spacing: 8) {
-                    Image(systemName: "calendar.badge.checkmark")
-                        .font(.system(size: 56))
-                        .foregroundStyle(.tint)
+                    AppMark(size: 80)
                     Text("Today")
                         .font(.title2.bold())
                     Text("Your events and tasks for the day, in one place.")
