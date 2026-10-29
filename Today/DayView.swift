@@ -27,7 +27,16 @@ struct DayView: View {
             }
             .background(Color(.systemGroupedBackground))
             .toolbar(.hidden, for: .navigationBar)
-            .overlay(alignment: .bottom) { toast }
+            .safeAreaInset(edge: .bottom) {
+                VStack {
+                    if lastMove != nil {
+                        toast
+                    } else if day != today {
+                        todayPill
+                    }
+                }
+                .animation(.snappy, value: day == today)
+            }
         }
         .sheet(isPresented: $showDatePicker) { datePicker }
         .sheet(isPresented: $showSettings) { SettingsView() }
@@ -81,7 +90,7 @@ struct DayView: View {
                 }
                 .bold()
             }
-            .font(.subheadline)
+            .font(.detail)
             .foregroundStyle(Color(.systemBackground))
             .tint(Color(.systemBackground))
             .padding()
@@ -90,6 +99,26 @@ struct DayView: View {
             .padding(.bottom, 8)
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
+    }
+
+    /// Floats at the bottom while away from today, pointing the way back.
+    private var todayPill: some View {
+        Button {
+            day = today
+        } label: {
+            HStack(spacing: 5) {
+                if day > today { Image(systemName: "chevron.left").imageScale(.small) }
+                Text("Today")
+                if day < today { Image(systemName: "chevron.right").imageScale(.small) }
+            }
+            .font(.body.weight(.semibold))
+            .foregroundStyle(.tint)
+            .padding(.horizontal, 4)
+        }
+        .glassButton()
+        .buttonBorderShape(.capsule)
+        .padding(.bottom, 8)
+        .transition(.scale(scale: 0.8).combined(with: .opacity))
     }
 
     /// "Friday" within the coming week, "Mon, Nov 9" further out.
@@ -153,11 +182,11 @@ private struct DayTop: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            DayHeader(day: $day, today: today, onPickDate: onPickDate, onSettings: onSettings)
+            DayHeader(day: day, today: today, onPickDate: onPickDate, onSettings: onSettings)
             WeekStrip(day: $day, today: today, busyDays: Set(openThisWeek.map(\.day)))
         }
         .padding(.horizontal, 20)
-        .padding(.top, 6)
+        .padding(.top, 14)
         .padding(.bottom, 4)
     }
 }
@@ -261,45 +290,57 @@ private struct DayPage: View {
     }
 }
 
+/// The date, which opens the day picker, and settings. Jumping back to today is the floating pill.
 private struct DayHeader: View {
-    @Binding var day: String
+    let day: String
     let today: String
     let onPickDate: () -> Void
     let onSettings: () -> Void
+
+    @ScaledMetric(relativeTo: .largeTitle) private var titleCapHeight = UIFont.preferredFont(
+        forTextStyle: .largeTitle, compatibleWith: UITraitCollection(preferredContentSizeCategory: .large)).capHeight
 
     var body: some View {
         let date = DayKey.date(for: day)
         let weekday = date.formatted(.dateTime.weekday(.wide))
         let sameYear = Calendar.current.isDate(date, equalTo: .now, toGranularity: .year)
-        HStack(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text((day == today ? "Today · \(weekday)" : weekday).uppercased())
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.tint)
-                Text(sameYear ? date.formatted(.dateTime.month(.wide).day())
-                              : date.formatted(.dateTime.month(.wide).day().year()))
-                    .font(.largeTitle.bold())
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isHeader)
-            Spacer()
-            HStack(spacing: 16) {
-                if day != today {
-                    Button("Today") { day = today }
-                        .font(.subheadline.weight(.semibold))
-                }
+        // The year rides on the weekday line so the date stays short enough for one line.
+        let eyebrow = day == today ? "Today · \(weekday)"
+            : sameYear ? weekday : "\(weekday) · \(date.formatted(.dateTime.year()))"
+        VStack(alignment: .leading, spacing: 0) {
+            Text(eyebrow)
+                .eyebrow()
+                .foregroundStyle(.tint)
+            HStack {
                 Button(action: onPickDate) {
-                    Image(systemName: "calendar")
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(date.formatted(.dateTime.month(.wide).day()))
+                            .font(.dayTitle)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                        Image(systemName: "chevron.down")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(.tint)
+                            // Centre on the date's capitals rather than sitting on its baseline.
+                            .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + titleCapHeight / 2 }
+                    }
+                    .contentShape(Rectangle())
                 }
-                .accessibilityLabel("Go to day")
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(eyebrow), \(date.formatted(.dateTime.month(.wide).day()))")
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityHint("Choose a day")
+                Spacer(minLength: 12)
                 Button(action: onSettings) {
                     Image(systemName: "gearshape")
+                        .font(.body.weight(.medium))
+                        .frame(width: 22, height: 22)
                 }
+                .glassButton()
+                .tint(.primary)
+                .buttonBorderShape(.circle)
                 .accessibilityLabel("Settings")
             }
-            .font(.title3)
-            .buttonStyle(.borderless)
-            .padding(.bottom, 6)
         }
     }
 }
@@ -390,10 +431,10 @@ private struct WeekStrip: View {
         } label: {
             VStack(spacing: 4) {
                 Text(letter)
-                    .font(.caption2.weight(.semibold))
+                    .font(.mark)
                     .foregroundStyle(.secondary)
                 Text(date.formatted(.dateTime.day()))
-                    .font(.callout.weight(selected || key == today ? .semibold : .regular))
+                    .font(.dayNumber.weight(selected || key == today ? .semibold : .regular))
                     .foregroundStyle(selected ? AnyShapeStyle(.white) : key == today ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
                     .frame(width: circle, height: circle)
                     .background(Circle().fill(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear)))
@@ -422,7 +463,7 @@ private struct LeftoversBanner: View {
             Text("\(tasks.count) unfinished from \(DayKey.date(for: yesterday).formatted(.dateTime.weekday(.wide)))")
                 .font(.headline)
             Text(tasks.map(\.title).joined(separator: ", "))
-                .font(.subheadline)
+                .font(.detail)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
             HStack(spacing: 12) {
@@ -434,5 +475,16 @@ private struct LeftoversBanner: View {
             .padding(.top, 4)
         }
         .padding(.vertical, 6)
+    }
+}
+
+extension View {
+    /// Liquid Glass where available, a bordered button before it.
+    @ViewBuilder func glassButton() -> some View {
+        if #available(iOS 26, *) {
+            buttonStyle(.glass)
+        } else {
+            buttonStyle(.bordered)
+        }
     }
 }

@@ -188,7 +188,7 @@ private struct AboutView: View {
                     Text("Today")
                         .font(.title2.bold())
                     Text("Your events and tasks for the day, in one place.")
-                        .font(.subheadline)
+                        .font(.detail)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
@@ -200,7 +200,7 @@ private struct AboutView: View {
             }
             Section("Privacy") {
                 Text("Calendar events are only read, never changed. Nothing leaves your device except through your own iCloud account.")
-                    .font(.subheadline)
+                    .font(.detail)
                     .foregroundStyle(.secondary)
             }
         }

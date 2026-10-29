@@ -23,13 +23,14 @@ struct EventsSection: View {
             }
         } header: {
             HStack {
-                Text("CALENDAR")
+                Text("Calendar")
                 Spacer()
                 if calendar.hasAccess {
                     Text(events.count == 1 ? "1 event" : "\(events.count) events")
                 }
             }
-            .textCase(nil)
+            .eyebrow()
+            .foregroundStyle(.secondary)
         }
         .task(id: "\(day)|\(hiddenRaw)|\(calendar.revision)") {
             events = calendar.events(on: day, hidden: HiddenCalendars.decode(hiddenRaw))
@@ -50,7 +51,7 @@ struct EventsSection: View {
         ForEach(allDay, id: \.calendarItemIdentifier) { event in
             row(event, past: false) {
                 Text("All day")
-                    .font(.subheadline)
+                    .font(.detail)
                     .foregroundStyle(.secondary)
             }
         }
@@ -61,9 +62,9 @@ struct EventsSection: View {
             row(event, past: isToday && event.endDate <= now) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(event.startDate.formatted(date: .omitted, time: .shortened))
-                        .font(.subheadline.weight(.semibold))
+                        .font(.time.weight(.semibold))
                     Text(event.endDate.formatted(date: .omitted, time: .shortened))
-                        .font(.subheadline)
+                        .font(.time)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -88,7 +89,7 @@ struct EventsSection: View {
                         .foregroundStyle(past ? .secondary : .primary)
                     if !event.isAllDay {
                         Text([event.calendar.title, event.location ?? ""].filter { !$0.isEmpty }.joined(separator: " · "))
-                            .font(.subheadline)
+                            .font(.detail)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
@@ -105,7 +106,7 @@ struct EventsSection: View {
     private var nowLine: some View {
         HStack(spacing: 8) {
             Text(now.formatted(date: .omitted, time: .shortened))
-                .font(.caption.weight(.semibold))
+                .font(.mark.monospacedDigit())
                 .foregroundStyle(.tint)
             Rectangle()
                 .fill(.tint)
@@ -122,7 +123,7 @@ struct EventsSection: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Calendar access is off")
                 Text("Turn it on to see your events here.")
-                    .font(.subheadline)
+                    .font(.detail)
                     .foregroundStyle(.secondary)
             }
             Spacer()

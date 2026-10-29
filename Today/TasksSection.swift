@@ -39,13 +39,14 @@ struct TasksSection: View {
                 .listRowInsets(rowInsets)
         } header: {
             HStack {
-                Text("TASKS")
+                Text("Tasks")
                 Spacer()
                 if !tasks.isEmpty {
                     Text(openCount == 0 ? "All done" : "\(openCount) left")
                 }
             }
-            .textCase(nil)
+            .eyebrow()
+            .foregroundStyle(.secondary)
         }
     }
 
