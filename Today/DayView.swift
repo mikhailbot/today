@@ -171,7 +171,7 @@ private struct DayList: View {
         List {
             Section {
                 DayHeader(day: $day, today: today, onPickDate: onPickDate, onSettings: onSettings)
-                    .listRowInsets(EdgeInsets(top: 16, leading: 4, bottom: 4, trailing: 4))
+                    .listRowInsets(EdgeInsets(top: 6, leading: 4, bottom: 4, trailing: 4))
                 WeekStrip(day: $day, today: today, busyDays: Set(openThisWeek.map(\.day)))
             }
             .listRowBackground(Color.clear)
@@ -197,6 +197,7 @@ private struct DayList: View {
         .listStyle(.insetGrouped)
         .environment(\.defaultMinListRowHeight, 0)
         .contentMargins(.horizontal, 16, for: .scrollContent)
+        .contentMargins(.top, 0, for: .scrollContent)
         .scrollDismissesKeyboard(.interactively)
     }
 }
