@@ -9,6 +9,7 @@ struct TasksSection: View {
     let onPickMove: (TaskItem) -> Void
 
     @Environment(\.modelContext) private var context
+    @AppStorage(Highlight.storageKey) private var highlight = Highlight.standard
     @State private var newTitle = ""
     @FocusState private var addFocused: Bool
 
@@ -23,7 +24,7 @@ struct TasksSection: View {
                     .swipeActions(edge: .trailing) {
                         if !task.isDone {
                             Button("Tomorrow") { onMove(task, DayKey.adding(1, to: today)) }
-                                .tint(.accentColor)
+                                .tint(highlight.color)
                             Button("Move…") { onPickMove(task) }
                                 .tint(.gray)
                         }
@@ -52,7 +53,7 @@ struct TasksSection: View {
         HStack(spacing: 4) {
             Image(systemName: "plus")
                 .font(.body.weight(.semibold))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(.tint)
                 .frame(width: 44, height: 44)
                 .accessibilityHidden(true)
             TextField("Add a task", text: $newTitle)
@@ -86,7 +87,7 @@ private struct TaskRow: View {
             } label: {
                 Image(systemName: task.isDone ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: checkSize))
-                    .foregroundStyle(task.isDone ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(task.isDone ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }

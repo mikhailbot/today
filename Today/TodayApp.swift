@@ -31,12 +31,16 @@ struct TodayApp: App {
 struct RootView: View {
     @Environment(CalendarStore.self) private var calendar
     @AppStorage("skippedCalendarAccess") private var skippedCalendarAccess = false
+    @AppStorage(Highlight.storageKey) private var highlight = Highlight.standard
 
     var body: some View {
-        if calendar.status == .notDetermined && !skippedCalendarAccess {
-            WelcomeView()
-        } else {
-            DayView()
+        Group {
+            if calendar.status == .notDetermined && !skippedCalendarAccess {
+                WelcomeView()
+            } else {
+                DayView()
+            }
         }
+        .tint(highlight.color)
     }
 }

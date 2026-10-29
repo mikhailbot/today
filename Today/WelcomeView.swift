@@ -9,7 +9,7 @@ struct WelcomeView: View {
             Spacer()
             Image(systemName: "calendar.badge.checkmark")
                 .font(.system(size: 72))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(.tint)
                 .accessibilityHidden(true)
             VStack(spacing: 12) {
                 Text("Your day, in one place")

@@ -188,7 +188,7 @@ private struct DayList: View {
                         withAnimation { leftoversHiddenOn = today }
                     }
                 }
-                .listRowBackground(Color.accentColor.opacity(0.12))
+                .listRowBackground(Rectangle().fill(.tint.opacity(0.12)))
             }
 
             TasksSection(day: day, today: today, tasks: TaskItem.ordered(tasks),
@@ -216,7 +216,7 @@ private struct DayHeader: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text((day == today ? "Today · \(weekday)" : weekday).uppercased())
                     .font(.footnote.weight(.semibold))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(.tint)
                 Text(sameYear ? date.formatted(.dateTime.month(.wide).day())
                               : date.formatted(.dateTime.month(.wide).day().year()))
                     .font(.largeTitle.bold())
@@ -234,7 +234,7 @@ private struct DayHeader: View {
                 }
                 .accessibilityLabel("Go to day")
                 Button(action: onSettings) {
-                    Image(systemName: "ellipsis.circle")
+                    Image(systemName: "gearshape")
                 }
                 .accessibilityLabel("Settings")
             }
@@ -279,11 +279,11 @@ private struct WeekStrip: View {
                     .foregroundStyle(.secondary)
                 Text(date.formatted(.dateTime.day()))
                     .font(.callout.weight(selected || key == today ? .semibold : .regular))
-                    .foregroundStyle(selected ? Color.white : key == today ? Color.accentColor : Color.primary)
+                    .foregroundStyle(selected ? AnyShapeStyle(.white) : key == today ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
                     .frame(width: circle, height: circle)
-                    .background(Circle().fill(selected ? Color.accentColor : Color.clear))
+                    .background(Circle().fill(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear)))
                 Circle()
-                    .fill(busyDays.contains(key) ? Color.accentColor : Color.clear)
+                    .fill(busyDays.contains(key) ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear))
                     .frame(width: 5, height: 5)
             }
             .frame(maxWidth: .infinity)

@@ -106,9 +106,9 @@ struct EventsSection: View {
         HStack(spacing: 8) {
             Text(now.formatted(date: .omitted, time: .shortened))
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(.tint)
             Rectangle()
-                .fill(Color.accentColor)
+                .fill(.tint)
                 .frame(height: 1)
         }
         .padding(.vertical, 4)
