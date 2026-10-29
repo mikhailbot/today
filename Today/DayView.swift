@@ -1,4 +1,5 @@
 import Combine
+import EventKit
 import SwiftData
 import SwiftUI
 
@@ -10,6 +11,7 @@ struct DayView: View {
     @State private var showDatePicker = false
     @State private var showSettings = false
     @State private var movingTask: TaskItem?
+    @State private var shownEvent: ShownEvent?
     @State private var lastMove: LastMove?
 
     var body: some View {
@@ -17,6 +19,7 @@ struct DayView: View {
             DayList(day: $day, today: today,
                     onMove: move,
                     onPickMove: { movingTask = $0 },
+                    onPickEvent: { shownEvent = ShownEvent(event: $0) },
                     onPickDate: { showDatePicker = true },
                     onSettings: { showSettings = true })
                 .toolbar(.hidden, for: .navigationBar)
@@ -27,6 +30,7 @@ struct DayView: View {
         .sheet(item: $movingTask) { task in
             MoveSheet(task: task, today: today) { move(task, to: $0) }
         }
+        .sheet(item: $shownEvent) { EventDetailView(event: $0.event).ignoresSafeArea() }
         .task(id: lastMove?.id) {
             guard lastMove != nil else { return }
             try? await Task.sleep(for: .seconds(4))
@@ -131,6 +135,7 @@ private struct DayList: View {
     let today: String
     let onMove: (TaskItem, String) -> Void
     let onPickMove: (TaskItem) -> Void
+    let onPickEvent: (EKEvent) -> Void
     let onPickDate: () -> Void
     let onSettings: () -> Void
 
@@ -142,12 +147,14 @@ private struct DayList: View {
     init(day: Binding<String>, today: String,
          onMove: @escaping (TaskItem, String) -> Void,
          onPickMove: @escaping (TaskItem) -> Void,
+         onPickEvent: @escaping (EKEvent) -> Void,
          onPickDate: @escaping () -> Void,
          onSettings: @escaping () -> Void) {
         _day = day
         self.today = today
         self.onMove = onMove
         self.onPickMove = onPickMove
+        self.onPickEvent = onPickEvent
         self.onPickDate = onPickDate
         self.onSettings = onSettings
 
@@ -171,7 +178,7 @@ private struct DayList: View {
             .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
             .listRowSeparator(.hidden)
 
-            EventsSection(day: day, today: today)
+            EventsSection(day: day, today: today, onPickEvent: onPickEvent)
 
             if day == today && !leftovers.isEmpty && leftoversHiddenOn != today {
                 Section {

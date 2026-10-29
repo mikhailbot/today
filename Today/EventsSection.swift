@@ -5,10 +5,10 @@ import SwiftUI
 struct EventsSection: View {
     let day: String
     let today: String
+    let onPickEvent: (EKEvent) -> Void
     @Environment(CalendarStore.self) private var calendar
     @AppStorage(HiddenCalendars.storageKey) private var hiddenRaw = ""
     @State private var events: [EKEvent] = []
-    @State private var shown: ShownEvent?
     @State private var now = Date()
     @ScaledMetric private var timeWidth: CGFloat = 68
 
@@ -35,7 +35,6 @@ struct EventsSection: View {
             events = calendar.events(on: day, hidden: HiddenCalendars.decode(hiddenRaw))
         }
         .onReceive(minuteTimer) { now = $0 }
-        .sheet(item: $shown) { EventDetailView(event: $0.event).ignoresSafeArea() }
     }
 
     @ViewBuilder private var eventRows: some View {
@@ -76,7 +75,7 @@ struct EventsSection: View {
 
     private func row(_ event: EKEvent, past: Bool, @ViewBuilder time: () -> some View) -> some View {
         Button {
-            shown = ShownEvent(event: event)
+            onPickEvent(event)
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 time()
