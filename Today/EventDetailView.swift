@@ -11,12 +11,28 @@ struct EventDetailView: UIViewControllerRepresentable {
         controller.event = event
         controller.allowsEditing = false
         controller.allowsCalendarPreview = false
+        // The controller swaps in its own Done button after some interactions, which reports to the delegate.
+        controller.delegate = context.coordinator
         let dismiss = dismiss
         controller.navigationItem.rightBarButtonItem = UIBarButtonItem(systemItem: .done, primaryAction: UIAction { _ in dismiss() })
         return UINavigationController(rootViewController: controller)
     }
 
-    func updateUIViewController(_ controller: UINavigationController, context: Context) {}
+    func updateUIViewController(_ controller: UINavigationController, context: Context) {
+        context.coordinator.dismiss = dismiss
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(dismiss: dismiss) }
+
+    final class Coordinator: NSObject, EKEventViewDelegate {
+        var dismiss: DismissAction
+
+        init(dismiss: DismissAction) { self.dismiss = dismiss }
+
+        func eventViewController(_ controller: EKEventViewController, didCompleteWith action: EKEventViewAction) {
+            dismiss()
+        }
+    }
 }
 
 /// Sheet item wrapper, since EKEvent isn't Identifiable.

@@ -10,7 +10,7 @@ extension Font {
     /// Secondary row text: calendar and location, the leftovers list, the toast.
     static let detail = Font.subheadline
     /// Clock times, with digits that line up down the column.
-    static let time = Font.subheadline.monospacedDigit()
+    static let time = Font.footnote.monospacedDigit()
     /// Day numbers in the week strip.
     static let dayNumber = Font.callout.monospacedDigit()
     /// The smallest marks: week strip letters and the now line.

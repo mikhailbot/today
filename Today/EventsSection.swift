@@ -10,7 +10,6 @@ struct EventsSection: View {
     @AppStorage(HiddenCalendars.storageKey) private var hiddenRaw = ""
     @State private var events: [EKEvent] = []
     @State private var now = Date()
-    @ScaledMetric private var timeWidth: CGFloat = 68
 
     private let minuteTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
@@ -60,13 +59,12 @@ struct EventsSection: View {
                 nowLine
             }
             row(event, past: isToday && event.endDate <= now) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .trailing, spacing: 2) {
                     Text(event.startDate.formatted(date: .omitted, time: .shortened))
-                        .font(.time.weight(.semibold))
                     Text(event.endDate.formatted(date: .omitted, time: .shortened))
-                        .font(.time)
                         .foregroundStyle(.secondary)
                 }
+                .font(.time)
             }
         }
         if let nowIndex, nowIndex == timed.count, !timed.isEmpty {
@@ -79,40 +77,45 @@ struct EventsSection: View {
             onPickEvent(event)
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                time()
-                    .frame(width: timeWidth, alignment: .leading)
                 Circle()
                     .fill(Color(cgColor: event.calendar.cgColor))
                     .frame(width: 8, height: 8)
+                    // Centre the dot on the title's lowercase letters rather than sitting on the baseline.
+                    .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(event.title ?? "")
+                        .fontWeight(.semibold)
                         .foregroundStyle(past ? .secondary : .primary)
-                    if !event.isAllDay {
-                        Text([event.calendar.title, event.location ?? ""].filter { !$0.isEmpty }.joined(separator: " · "))
-                            .font(.detail)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                    if let location = event.location, !location.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "location")
+                            Text(location)
+                        }
+                        .font(.detail)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                     }
                 }
                 Spacer(minLength: 0)
+                time()
             }
             .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
             .opacity(past ? 0.7 : 1)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets(top: 9, leading: 16, bottom: 9, trailing: 16))
     }
 
     private var nowLine: some View {
         HStack(spacing: 8) {
-            Text(now.formatted(date: .omitted, time: .shortened))
-                .font(.mark.monospacedDigit())
-                .foregroundStyle(.tint)
             Rectangle()
                 .fill(.tint)
                 .frame(height: 1)
+            Text(now.formatted(date: .omitted, time: .shortened))
+                .font(.mark.monospacedDigit())
+                .foregroundStyle(.tint)
         }
-        .padding(.vertical, 4)
         .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
         .listRowSeparator(.hidden)
         .accessibilityLabel("Now, \(now.formatted(date: .omitted, time: .shortened))")
