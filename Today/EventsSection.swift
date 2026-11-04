@@ -50,10 +50,8 @@ struct EventsSection: View {
             Text("No events")
                 .foregroundStyle(.secondary)
         }
-        ForEach(Array(allDay.enumerated()), id: \.element.calendarItemIdentifier) { index, event in
-            // Extra space, not a separator, sets all-day events apart from timed ones.
+        ForEach(allDay, id: \.calendarItemIdentifier) { event in
             compactRow(event, past: false, trailing: "All day")
-                .padding(.bottom, index == allDay.count - 1 && !timed.isEmpty ? 8 : 0)
                 .listRowSeparator(.hidden)
         }
         ForEach(Array(timed.enumerated()), id: \.element.calendarItemIdentifier) { index, event in
@@ -71,6 +69,9 @@ struct EventsSection: View {
             .listRowSeparator(.hidden)
         }
     }
+
+    /// Every row shares the same padding so the gaps between events are even.
+    private let rowInsets = EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16)
 
     private func dot(_ color: Color) -> some View {
         Circle()
@@ -99,7 +100,7 @@ struct EventsSection: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .listRowInsets(EdgeInsets(top: 7, leading: 16, bottom: 7, trailing: 16))
+        .listRowInsets(rowInsets)
     }
 
     private func fullRow(_ event: EKEvent, live: Bool) -> some View {
@@ -147,7 +148,8 @@ struct EventsSection: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .listRowInsets(EdgeInsets(top: live ? 14 : 11, leading: 16, bottom: live ? 14 : 11, trailing: 16))
+        // The event in progress gets extra room so its tint doesn't crowd its neighbours.
+        .listRowInsets(live ? EdgeInsets(top: 14, leading: 16, bottom: 14, trailing: 16) : rowInsets)
     }
 
     /// The app icon's mark: a dot on the left end of a line, lined up with the event dots.
@@ -164,8 +166,7 @@ struct EventsSection: View {
         }
         .padding(.leading, -1)
         .frame(height: 16)
-        // Evenly spaced: the past row above has a 7pt inset, the upcoming row below an 11pt one.
-        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 0, trailing: 16))
+        .listRowInsets(EdgeInsets(top: 2, leading: 16, bottom: 2, trailing: 16))
         .listRowSeparator(.hidden)
         .accessibilityLabel("Now")
     }
