@@ -51,11 +51,10 @@ struct EventsSection: View {
                 .foregroundStyle(.secondary)
         }
         ForEach(Array(allDay.enumerated()), id: \.element.calendarItemIdentifier) { index, event in
-            // A full-width hairline is the only separator: between all-day and timed events.
-            let divides = index == allDay.count - 1 && !timed.isEmpty
+            // Extra space, not a separator, sets all-day events apart from timed ones.
             compactRow(event, past: false, trailing: "All day")
-                .listRowSeparator(.hidden, edges: .top)
-                .listRowSeparator(divides ? .visible : .hidden, edges: .bottom)
+                .padding(.bottom, index == allDay.count - 1 && !timed.isEmpty ? 8 : 0)
+                .listRowSeparator(.hidden)
         }
         ForEach(Array(timed.enumerated()), id: \.element.calendarItemIdentifier) { index, event in
             // Between events only: an event in progress shows its own progress line instead.
@@ -69,8 +68,7 @@ struct EventsSection: View {
                     fullRow(event, live: isToday && event.startDate <= now)
                 }
             }
-            .listRowSeparator(index == 0 && !allDay.isEmpty ? .visible : .hidden, edges: .top)
-            .listRowSeparator(.hidden, edges: .bottom)
+            .listRowSeparator(.hidden)
         }
     }
 
@@ -98,12 +96,10 @@ struct EventsSection: View {
                     .font(.time)
                     .foregroundStyle(.secondary)
             }
-            .alignmentGuide(.listRowSeparatorLeading) { _ in -16 }
-            .alignmentGuide(.listRowSeparatorTrailing) { $0.width + 16 }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+        .listRowInsets(EdgeInsets(top: 7, leading: 16, bottom: 7, trailing: 16))
     }
 
     private func fullRow(_ event: EKEvent, live: Bool) -> some View {
@@ -151,7 +147,7 @@ struct EventsSection: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .listRowInsets(EdgeInsets(top: live ? 12 : 9, leading: 16, bottom: live ? 12 : 9, trailing: 16))
+        .listRowInsets(EdgeInsets(top: live ? 14 : 11, leading: 16, bottom: live ? 14 : 11, trailing: 16))
     }
 
     /// The app icon's mark: a dot on the left end of a line, lined up with the event dots.
@@ -168,7 +164,7 @@ struct EventsSection: View {
         }
         .padding(.leading, -1)
         .frame(height: 16)
-        // Evenly spaced: the past row above has a 5pt inset, the upcoming row below a 9pt one.
+        // Evenly spaced: the past row above has a 7pt inset, the upcoming row below an 11pt one.
         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 0, trailing: 16))
         .listRowSeparator(.hidden)
         .accessibilityLabel("Now")
