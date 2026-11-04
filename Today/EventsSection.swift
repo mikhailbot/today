@@ -2,6 +2,8 @@ import Combine
 import EventKit
 import SwiftUI
 
+/// One card with no separators: all-day events pinned on top, past events shrunk to grey single lines,
+/// the event in progress tinted with a progress line, and the now line between events.
 struct EventsSection: View {
     let day: String
     let today: String
@@ -41,51 +43,78 @@ struct EventsSection: View {
         let allDay = events.filter(\.isAllDay)
         let timed = events.filter { !$0.isAllDay }
         let isToday = day == today
-        let nowIndex = isToday ? (timed.firstIndex { $0.endDate > now } ?? timed.count) : nil
+        // Nil once every event has ended, so the line disappears at the end of the day.
+        let nowIndex = isToday ? timed.firstIndex { $0.endDate > now } : nil
 
         if events.isEmpty {
             Text("No events")
                 .foregroundStyle(.secondary)
         }
-        ForEach(allDay, id: \.calendarItemIdentifier) { event in
-            row(event, past: false) {
-                Text("All day")
-                    .font(.detail)
-                    .foregroundStyle(.secondary)
-            }
+        ForEach(Array(allDay.enumerated()), id: \.element.calendarItemIdentifier) { index, event in
+            // A full-width hairline is the only separator: between all-day and timed events.
+            let divides = index == allDay.count - 1 && !timed.isEmpty
+            compactRow(event, past: false, trailing: "All day")
+                .listRowSeparator(.hidden, edges: .top)
+                .listRowSeparator(divides ? .visible : .hidden, edges: .bottom)
         }
         ForEach(Array(timed.enumerated()), id: \.element.calendarItemIdentifier) { index, event in
-            if index == nowIndex {
+            // Between events only: an event in progress shows its own progress line instead.
+            if index == nowIndex, index > 0, event.startDate > now {
                 nowLine
             }
-            row(event, past: isToday && event.endDate <= now) {
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(event.startDate.formatted(date: .omitted, time: .shortened))
-                    Text(event.endDate.formatted(date: .omitted, time: .shortened))
-                        .foregroundStyle(.secondary)
+            Group {
+                if isToday && event.endDate <= now {
+                    compactRow(event, past: true, trailing: event.startDate.formatted(date: .omitted, time: .shortened))
+                } else {
+                    fullRow(event, live: isToday && event.startDate <= now)
                 }
-                .font(.time)
             }
-        }
-        if let nowIndex, nowIndex == timed.count, !timed.isEmpty {
-            nowLine
+            .listRowSeparator(index == 0 && !allDay.isEmpty ? .visible : .hidden, edges: .top)
+            .listRowSeparator(.hidden, edges: .bottom)
         }
     }
 
-    private func row(_ event: EKEvent, past: Bool, @ViewBuilder time: () -> some View) -> some View {
+    private func dot(_ color: Color) -> some View {
+        Circle()
+            .fill(color)
+            .frame(width: 8, height: 8)
+            // Centre the dot on the title's lowercase letters rather than sitting on the baseline.
+            .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
+    }
+
+    /// A single line: all-day events, and past events greyed out.
+    private func compactRow(_ event: EKEvent, past: Bool, trailing: String) -> some View {
         Button {
             onPickEvent(event)
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Circle()
-                    .fill(Color(cgColor: event.calendar.cgColor))
-                    .frame(width: 8, height: 8)
-                    // Centre the dot on the title's lowercase letters rather than sitting on the baseline.
-                    .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
+                dot(past ? Color(.systemGray3) : Color(cgColor: event.calendar.cgColor))
+                Text(event.title ?? "")
+                    .fontWeight(past ? .regular : .semibold)
+                    .foregroundStyle(past ? .secondary : .primary)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Text(trailing)
+                    .font(.time)
+                    .foregroundStyle(.secondary)
+            }
+            .alignmentGuide(.listRowSeparatorLeading) { _ in -16 }
+            .alignmentGuide(.listRowSeparatorTrailing) { $0.width + 16 }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+    }
+
+    private func fullRow(_ event: EKEvent, live: Bool) -> some View {
+        Button {
+            onPickEvent(event)
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                dot(Color(cgColor: event.calendar.cgColor))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(event.title ?? "")
                         .fontWeight(.semibold)
-                        .foregroundStyle(past ? .secondary : .primary)
                     if let location = event.location, !location.isEmpty {
                         HStack(spacing: 4) {
                             Image(systemName: "location")
@@ -95,30 +124,54 @@ struct EventsSection: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                     }
+                    if live {
+                        ProgressLine(fraction: now.timeIntervalSince(event.startDate) / event.endDate.timeIntervalSince(event.startDate))
+                            .padding(.top, 6)
+                        Text("\(Int((event.endDate.timeIntervalSince(now) / 60).rounded(.up))) min left")
+                            .font(.detail)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 Spacer(minLength: 0)
-                time()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(event.startDate.formatted(date: .omitted, time: .shortened))
+                    Text(event.endDate.formatted(date: .omitted, time: .shortened))
+                        .foregroundStyle(.secondary)
+                }
+                .font(.time)
             }
-            .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
-            .opacity(past ? 0.7 : 1)
+            .background {
+                if live {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(.tint.opacity(0.09))
+                        .padding(.horizontal, -8)
+                        .padding(.vertical, -8)
+                }
+            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .listRowInsets(EdgeInsets(top: 9, leading: 16, bottom: 9, trailing: 16))
+        .listRowInsets(EdgeInsets(top: live ? 12 : 9, leading: 16, bottom: live ? 12 : 9, trailing: 16))
     }
 
+    /// The app icon's mark: a dot on the left end of a line, lined up with the event dots.
     private var nowLine: some View {
-        HStack(spacing: 8) {
-            Rectangle()
+        HStack(spacing: 0) {
+            Circle()
                 .fill(.tint)
-                .frame(height: 1)
-            Text(now.formatted(date: .omitted, time: .shortened))
-                .font(.mark.monospacedDigit())
-                .foregroundStyle(.tint)
+                .frame(width: 10, height: 10)
+                .background(Circle().fill(.tint.opacity(0.22)).padding(-3))
+            Capsule()
+                .fill(.tint)
+                .frame(height: 2.5)
+                .padding(.leading, -2)
         }
-        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+        .padding(.leading, -1)
+        .frame(height: 16)
+        // Evenly spaced: the past row above has a 5pt inset, the upcoming row below a 9pt one.
+        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 0, trailing: 16))
         .listRowSeparator(.hidden)
-        .accessibilityLabel("Now, \(now.formatted(date: .omitted, time: .shortened))")
+        .accessibilityLabel("Now")
     }
 
     private var accessRow: some View {
@@ -139,5 +192,33 @@ struct EventsSection: View {
             }
             .buttonStyle(.bordered)
         }
+    }
+}
+
+/// How far through the event in progress we are: a track with the icon's dot riding along it.
+private struct ProgressLine: View {
+    let fraction: Double
+
+    var body: some View {
+        GeometryReader { geo in
+            let x = geo.size.width * min(max(fraction, 0), 1)
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(.tint.opacity(0.22))
+                    .frame(height: 4)
+                Capsule()
+                    .fill(.tint)
+                    .frame(width: x, height: 4)
+                Circle()
+                    .fill(.tint)
+                    .frame(width: 12, height: 12)
+                    .offset(x: x - 6)
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .frame(height: 12)
+        .accessibilityElement()
+        .accessibilityLabel("Progress")
+        .accessibilityValue("\(Int(fraction * 100)) percent")
     }
 }
