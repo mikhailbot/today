@@ -43,20 +43,3 @@ struct WelcomeView: View {
         .background(Color(.systemGroupedBackground))
     }
 }
-
-/// The app icon's now-line mark on an icon-shaped tile.
-struct AppMark: View {
-    let size: CGFloat
-
-    var body: some View {
-        let tile = RoundedRectangle(cornerRadius: size * 0.225, style: .continuous)
-        Image("LaunchMark")
-            .resizable()
-            .scaledToFit()
-            .padding(size * 0.175)
-            .frame(width: size, height: size)
-            .background(Color(.systemBackground), in: tile)
-            .overlay(tile.stroke(Color(.separator), lineWidth: 0.5))
-            .accessibilityHidden(true)
-    }
-}

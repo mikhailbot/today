@@ -154,18 +154,8 @@ struct EventsSection: View {
 
     /// The app icon's mark: a dot on the left end of a line, lined up with the event dots.
     private var nowLine: some View {
-        HStack(spacing: 0) {
-            Circle()
-                .fill(.tint)
-                .frame(width: 10, height: 10)
-                .background(Circle().fill(.tint.opacity(0.22)).padding(-3))
-            Capsule()
-                .fill(.tint)
-                .frame(height: 2.5)
-                .padding(.leading, -2)
-        }
-        .padding(.leading, -1)
-        .frame(height: 16)
+        NowLine()
+            .padding(.leading, -1)
         .listRowInsets(EdgeInsets(top: 2, leading: 16, bottom: 2, trailing: 16))
         .listRowSeparator(.hidden)
         .accessibilityLabel("Now")
@@ -201,7 +191,7 @@ private struct ProgressLine: View {
             let x = geo.size.width * min(max(fraction, 0), 1)
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(.tint.opacity(0.22))
+                    .fill(.future)
                     .frame(height: 4)
                 Capsule()
                     .fill(.tint)
