@@ -1,41 +1,14 @@
 import SwiftUI
 
-// Lively interactions: a tick that springs, washes the row in the accent and draws its line across,
-// and a small celebration from the mark when the day's last task is done.
+// A small celebration from the mark when the day's last task is ticked off.
 
 extension EnvironmentValues {
     /// Called when the last open task on the day is ticked off.
     @Entry var onAllDone: () -> Void = {}
 }
 
-/// A line drawn across a task's title from the leading edge, like a pen through a diary line.
-struct DrawnStrike: ViewModifier {
-    let isOn: Bool
-    let animated: Bool
-    @State private var drawn: CGFloat = 0
-
-    func body(content: Content) -> some View {
-        content
-            .overlay(alignment: .leading) {
-                GeometryReader { geo in
-                    Capsule()
-                        .fill(.secondary)
-                        .frame(width: geo.size.width * drawn, height: 1.5)
-                        .frame(maxHeight: .infinity)
-                }
-                .allowsHitTesting(false)
-            }
-            .onAppear { drawn = isOn ? 1 : 0 }
-            .onChange(of: isOn) { _, on in
-                withAnimation(animated ? (on ? .easeOut(duration: 0.35) : .easeIn(duration: 0.2)) : nil) {
-                    drawn = on ? 1 : 0
-                }
-            }
-    }
-}
-
 /// The mark celebrates a finished day: the future bars sweep across to the past colour, the dot
-/// lands at the end of its line, and \"All done\" settles underneath.
+/// lands at the end of its line, and "All done" settles underneath.
 struct AllDoneCelebration: View {
     @State private var sweep = 0.0
     @State private var dot = 0.0
@@ -107,42 +80,3 @@ private struct SweptMark: View, Animatable {
         .accessibilityHidden(true)
     }
 }
-
-#if DEBUG
-/// Every theme side by side in miniature, light above dark, for comparing the papers.
-/// Shown instead of the day when launched with `-themeGallery YES`.
-struct ThemeGallery: View {
-    @AppStorage(PaperStyle.storageKey) private var paper = PaperStyle.classic
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("\(paper.name) papers")
-                    .font(.title2.bold())
-                    .padding(.horizontal, 4)
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)],
-                          spacing: 12) {
-                    ForEach(Theme.offered) { theme in
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack(spacing: 6) {
-                                tile(theme, .light)
-                                tile(theme, .dark)
-                            }
-                            Text(theme.name).font(.footnote.weight(.semibold))
-                        }
-                    }
-                }
-            }
-            .padding(14)
-        }
-        .background(Color(.systemGroupedBackground))
-    }
-
-    private func tile(_ theme: Theme, _ scheme: ColorScheme) -> some View {
-        ThemePreview(isSelected: false)
-            .environment(\.theme, theme)
-            .tint(theme.color(\.accent))
-            .environment(\.colorScheme, scheme)
-    }
-}
-#endif

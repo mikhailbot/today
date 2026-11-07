@@ -39,9 +39,6 @@ struct SettingsView: View {
                 Section("Theme") {
                     ThemePicker(selected: $theme)
                 }
-                #if DEBUG
-                DesignLabSettings()
-                #endif
                 Section {
                     NavigationLink {
                         AboutView()
@@ -76,7 +73,7 @@ private struct ThemePicker: View {
 
     var body: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 12)], spacing: 14) {
-            ForEach(Theme.offered) { theme in
+            ForEach(Theme.allCases) { theme in
                 Button {
                     withAnimation(.snappy) { selected = theme }
                 } label: {
@@ -106,7 +103,7 @@ private struct ThemePicker: View {
 
 /// A theme's day in miniature: the mark as the day's progress, a finished event, the now line,
 /// the next event, and a ticked and an open task.
-struct ThemePreview: View {
+private struct ThemePreview: View {
     let isSelected: Bool
 
     var body: some View {

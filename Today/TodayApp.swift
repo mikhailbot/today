@@ -33,46 +33,24 @@ struct RootView: View {
     @AppStorage("skippedCalendarAccess") private var skippedCalendarAccess = false
     @AppStorage(Theme.storageKey) private var theme = Theme.standard
     @AppStorage(Appearance.storageKey) private var appearance = Appearance.system
-    @AppStorage(PaperStyle.storageKey) private var paperStyle = PaperStyle.classic
-    @Environment(\.modelContext) private var context
     #if DEBUG
-    @State private var seeded = !DebugSeed.isRequested
+    @Environment(\.modelContext) private var context
     #endif
 
     var body: some View {
-        #if DEBUG
-        // The palettes read this when they resolve; `.id` below redraws everything when it changes.
-        let _ = (PaperStyle.active = paperStyle)
-        #endif
         Group {
-            #if DEBUG
-            if !seeded {
-                Color.clear
-            } else if UserDefaults.standard.bool(forKey: "themeGallery") {
-                ThemeGallery()
-            } else if calendar.status == .notDetermined && !skippedCalendarAccess {
-                WelcomeView()
-            } else {
-                DayView()
-            }
-            #else
             if calendar.status == .notDetermined && !skippedCalendarAccess {
                 WelcomeView()
             } else {
                 DayView()
             }
-            #endif
         }
         .tint(theme.color(\.accent))
         .environment(\.theme, theme)
-        .modifier(DesignLabEnvironment())
-        .id(paperStyle)
         .onChange(of: appearance, initial: true) { appearance.apply() }
         #if DEBUG
         .task {
-            guard !seeded else { return }
-            await DebugSeed.run(context: context, calendar: calendar)
-            seeded = true
+            if DebugSeed.isRequested { await DebugSeed.run(context: context, calendar: calendar) }
         }
         #endif
     }

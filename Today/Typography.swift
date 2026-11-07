@@ -3,10 +3,13 @@ import SwiftUI
 /// The app's type scale. Text takes its style from here so every screen reads as one app.
 /// All styles are Dynamic Type text styles, so they scale with the user's text size.
 extension Font {
-    /// The date at the top of the day.
-    static let dayTitle = Font.largeTitle.bold()
-    /// The spoken day above the date: "Friday morning", "Tomorrow".
-    static let spokenDay = Font.subheadline.weight(.semibold)
+    /// The month beside the day's big numeral at the top of the day. The numeral itself is a scaled
+    /// size in `DayHeader`, larger than any text style.
+    static let dayMonth = Font.system(.title, design: .rounded, weight: .bold)
+    /// The date on one line once the header folds: "Sat, Nov 7".
+    static let foldedDay = Font.system(.title2, design: .rounded, weight: .bold)
+    /// The spoken day above the month: "Friday morning", "Tomorrow".
+    static let spokenDay = Font.system(.subheadline, design: .rounded, weight: .semibold)
     /// Section headings: "Calendar", "Tasks".
     static let sectionTitle = Font.title3.weight(.semibold)
     /// Secondary row text: calendar and location, the leftovers list, the toast.

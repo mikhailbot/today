@@ -15,36 +15,38 @@ struct DayView: View {
     @State private var movingTask: TaskItem?
     @State private var shownEvent: ShownEvent?
     @State private var lastMove: LastMove?
-    /// Colour block's header folds to one line once the day scrolls.
+    /// The header folds to one line once the day scrolls.
     @State private var headerCollapsed = false
     @State private var celebrating = false
-    @State private var topHeight: CGFloat = 0
-    @AppStorage(DesignLab.skyHourKey) private var skyHour = -1.0
-    @Environment(\.designDirection) private var direction
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                DayTop(day: $day, today: today, collapsed: direction == .colourBlock && headerCollapsed,
+                DayTop(day: $day, today: today, collapsed: headerCollapsed,
                        onPickDate: { showDatePicker = true },
                        onSettings: { showSettings = true })
+                    // Above the pages, so nothing scrolling shows over the slab while it folds.
                     .zIndex(1)
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { topHeight = $0 }
                 DayPager(day: $day, today: today, anchor: anchor,
                          onMove: move,
                          onPickMove: { movingTask = $0 },
                          onPickEvent: { shownEvent = ShownEvent(event: $0) },
                          onScrolled: { scrolled in
                              guard scrolled != headerCollapsed else { return }
-                             withAnimation(.spring(duration: 0.4, bounce: 0.15)) { headerCollapsed = scrolled }
+                             withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.4, bounce: 0.15)) {
+                                 headerCollapsed = scrolled
+                             }
                          })
             }
-            .onChange(of: day) { withAnimation(.snappy) { headerCollapsed = false } }
-            .environment(\.onAllDone, { withAnimation(.spring(duration: 0.4, bounce: 0.3)) { celebrating = true } })
+            .onChange(of: day) { withAnimation(reduceMotion ? nil : .snappy) { headerCollapsed = false } }
+            .environment(\.onAllDone, {
+                withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.4, bounce: 0.3)) { celebrating = true }
+            })
             .overlay {
                 if celebrating {
                     AllDoneCelebration()
-                        .transition(.scale(scale: 0.85).combined(with: .opacity))
+                        .transition(reduceMotion ? .opacity : .scale(scale: 0.85).combined(with: .opacity))
                         .task {
                             try? await Task.sleep(for: .seconds(2.6))
                             withAnimation(.easeIn(duration: 0.3)) { celebrating = false }
@@ -55,23 +57,10 @@ struct DayView: View {
             // The theme's ink for the page's text. Not set at the root: a foreground style overrides the tint,
             // which would take it off buttons and icons in sheets.
             .foregroundStyle(.ink, .secondaryInk, .tertiaryInk)
-            .background(alignment: .top) {
-                if direction == .daylight {
-                    // Behind the header and strip, up under the status bar, fading into the paper
-                    // a little way down the page.
-                    GeometryReader { geo in
-                        TimelineView(.everyMinute) { context in
-                            DaylightSky(hour: skyHour >= 0 ? skyHour : DaylightSky.hour(of: context.date))
-                                .frame(height: topHeight + geo.safeAreaInsets.top + 150)
-                                .offset(y: -geo.safeAreaInsets.top)
-                        }
-                    }
-                }
-            }
             .background(.paper)
+            // The slab is a deep colour in every theme, so the status bar reads light on it.
+            .background { LightStatusBar().frame(width: 0, height: 0) }
             .toolbar(.hidden, for: .navigationBar)
-            // White status bar text over Colour block's slab.
-            .toolbarColorScheme(direction == .colourBlock ? .dark : nil, for: .navigationBar)
             .safeAreaInset(edge: .bottom) {
                 VStack {
                     if lastMove != nil {
@@ -85,9 +74,6 @@ struct DayView: View {
         }
         .sheet(isPresented: $showDatePicker) { datePicker }
         .sheet(isPresented: $showSettings) { SettingsView() }
-        #if DEBUG
-        .onAppear { if UserDefaults.standard.bool(forKey: "openSettings") { showSettings = true } }
-        #endif
         .sheet(item: $movingTask) { task in
             MoveSheet(task: task, today: today, days: DayPager.days(around: anchor)) { move(task, to: $0) }
         }
@@ -211,7 +197,7 @@ struct LastMove {
     let to: String
 }
 
-/// The header and week strip, pinned above the day pages.
+/// The header and week strip on the theme's slab, pinned above the day pages.
 private struct DayTop: View {
     @Binding var day: String
     let today: String
@@ -221,15 +207,11 @@ private struct DayTop: View {
 
     @Environment(CalendarStore.self) private var calendar
     @Environment(\.theme) private var theme
-    @Environment(\.designDirection) private var direction
-    @Environment(\.livelyInteractions) private var lively
     @AppStorage(HiddenCalendars.storageKey) private var hiddenRaw = ""
-    /// Tasks in the shown week and the weeks either side, for the week strip's marks.
+    /// Tasks in the shown week and the weeks either side, for the week strip's load bars.
     @Query private var nearby: [TaskItem]
     /// Hours of timed events per day around the shown week, for the load bars.
     @State private var eventHours: [String: Double] = [:]
-    @State private var height: CGFloat = 0
-    @State private var safeTop: CGFloat = 0
 
     init(day: Binding<String>, today: String, collapsed: Bool,
          onPickDate: @escaping () -> Void, onSettings: @escaping () -> Void) {
@@ -248,36 +230,28 @@ private struct DayTop: View {
 
     var body: some View {
         TimelineView(.everyMinute) { context in
-            if direction == .colourBlock {
-                VStack(alignment: .leading, spacing: collapsed ? 10 : 16) {
-                    ColourBlockHeader(day: day, today: today, now: context.date, collapsed: collapsed,
-                                      onPickDate: onPickDate, onSettings: onSettings)
-                    strip(onSlab: true)
-                }
-                .foregroundStyle(theme.onSlab)
-                .padding(.horizontal, 20)
-                .padding(.top, collapsed ? 2 : 10)
-                .padding(.bottom, 14)
-                .background(alignment: .top) {
-                    ColourSlab()
-                        .frame(height: height + safeTop)
-                        .offset(y: -safeTop)
-                }
-                .padding(.bottom, 6)
-            } else {
-                VStack(spacing: 8) {
-                    DayHeader(day: day, today: today, now: context.date, onPickDate: onPickDate, onSettings: onSettings)
-                    strip(onSlab: false)
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 14)
-                .padding(.bottom, 8)
+            VStack(alignment: .leading, spacing: collapsed ? 10 : 16) {
+                DayHeader(day: day, today: today, now: context.date, collapsed: collapsed,
+                          onPickDate: onPickDate, onSettings: onSettings)
+                WeekStrip(day: $day, today: today, load: load)
+                    // Seven days have to fit across the screen; past this size they'd push the whole day
+                    // view wider than the screen. Long-pressing a day shows it enlarged instead.
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             }
         }
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
-        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { safeTop = $0 }
-        .task(id: "\(DayKey.week(containing: day)[0])|\(hiddenRaw)|\(calendar.revision)|\(lively)") {
-            guard lively else { return }
+        .foregroundStyle(theme.onSlab)
+        .padding(.horizontal, 20)
+        .padding(.top, collapsed ? 2 : 10)
+        .padding(.bottom, 14)
+        // Fills this view's own frame and runs up under the status bar, so it follows the header
+        // frame for frame as it folds.
+        .background {
+            UnevenRoundedRectangle(bottomLeadingRadius: 30, bottomTrailingRadius: 30, style: .continuous)
+                .fill(theme.slab.gradient)
+                .ignoresSafeArea(edges: .top)
+        }
+        .padding(.bottom, 6)
+        .task(id: "\(DayKey.week(containing: day)[0])|\(hiddenRaw)|\(calendar.revision)") {
             let hidden = HiddenCalendars.decode(hiddenRaw)
             var hours: [String: Double] = [:]
             for key in Self.days(around: day) {
@@ -290,22 +264,15 @@ private struct DayTop: View {
         }
     }
 
-    private func strip(onSlab: Bool) -> some View {
-        let week = Set(DayKey.week(containing: day))
+    private var load: [String: WeekStrip.Load] {
         var load: [String: WeekStrip.Load] = [:]
         for task in nearby {
             load[task.day, default: .init()].open += task.isDone ? 0 : 1
             load[task.day, default: .init()].done += task.isDone ? 1 : 0
         }
         for (key, hours) in eventHours { load[key, default: .init()].eventHours = hours }
-        return WeekStrip(day: $day, today: today,
-                         busyDays: Set(nearby.filter { !$0.isDone && week.contains($0.day) }.map(\.day)),
-                         load: lively ? load : nil, onSlab: onSlab)
-            // Seven days have to fit across the screen; past this size they'd push the whole day
-            // view wider than the screen. Long-pressing a day shows it enlarged instead.
-            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        return load
     }
-
 }
 
 /// Day pages side by side; swiping pages one day at a time, like Calendar.
@@ -424,91 +391,27 @@ private struct DayPage: View {
     }
 }
 
-/// The date, which opens the day picker, and settings. Jumping back to today is the floating pill.
-private struct DayHeader: View {
-    let day: String
-    let today: String
-    let now: Date
-    let onPickDate: () -> Void
-    @ScaledMetric(relativeTo: .subheadline) private var eyebrowDot: CGFloat = 7
-    let onSettings: () -> Void
-
-    @ScaledMetric(relativeTo: .largeTitle) private var titleCapHeight = UIFont.preferredFont(
-        forTextStyle: .largeTitle, compatibleWith: UITraitCollection(preferredContentSizeCategory: .large)).capHeight
-
-    var body: some View {
-        let date = DayKey.date(for: day)
-        let eyebrow = spokenDay(date)
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 7) {
-                if day == today {
-                    NowDot(size: eyebrowDot)
-                }
-                Text(eyebrow)
-                    .font(.spokenDay)
-                    .foregroundStyle(day == today ? AnyShapeStyle(.now) : AnyShapeStyle(.secondary))
-            }
-            HStack {
-                Button(action: onPickDate) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(date.formatted(.dateTime.month(.wide).day()))
-                            .font(.dayTitle)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.6)
-                        Image(systemName: "chevron.down")
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(.tint)
-                            // Centre on the date's capitals rather than sitting on its baseline.
-                            .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + titleCapHeight / 2 }
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("\(day == today ? "Today, " : "")\(eyebrow), \(date.formatted(.dateTime.month(.wide).day()))")
-                .accessibilityAddTraits(.isHeader)
-                .accessibilityHint("Choose a day")
-                Spacer(minLength: 12)
-                Button(action: onSettings) {
-                    Image(systemName: "gearshape")
-                        .font(.body.weight(.medium))
-                        .frame(width: 22, height: 22)
-                }
-                .glassButton()
-                .tint(.primary)
-                .buttonBorderShape(.circle)
-                .accessibilityLabel("Settings")
-            }
-        }
-    }
-}
-
-extension DayHeader {
-    func spokenDay(_ date: Date) -> String { Today.spokenDay(day, today: today, now: now) }
-}
-
 /// The day as you'd say it: "Friday morning", "Tomorrow", "Wednesday", "Monday · 2027".
 /// The year rides on this line so the date below stays short enough for one line.
 func spokenDay(_ day: String, today: String, now: Date) -> String {
-        let date = DayKey.date(for: day)
-        let weekday = date.formatted(.dateTime.weekday(.wide))
-        switch DayKey.days(from: today, to: day) {
-        case 0: return "\(weekday) \(DayPart(now).rawValue)"
-        case 1: return "Tomorrow"
-        case -1: return "Yesterday"
-        default:
-            let sameYear = Calendar.current.isDate(date, equalTo: now, toGranularity: .year)
-            return sameYear ? weekday : "\(weekday) · \(date.formatted(.dateTime.year()))"
-        }
+    let date = DayKey.date(for: day)
+    let weekday = date.formatted(.dateTime.weekday(.wide))
+    switch DayKey.days(from: today, to: day) {
+    case 0: return "\(weekday) \(DayPart(now).rawValue)"
+    case 1: return "Tomorrow"
+    case -1: return "Yesterday"
+    default:
+        let sameYear = Calendar.current.isDate(date, equalTo: now, toGranularity: .year)
+        return sameYear ? weekday : "\(weekday) · \(date.formatted(.dateTime.year()))"
+    }
 }
 
+/// The week on the slab. The selected day is a tall pill around its letter and number that glides
+/// from day to day; under each day, two of the mark's bars show how full it is.
 private struct WeekStrip: View {
     @Binding var day: String
     let today: String
-    let busyDays: Set<String>
-    /// Lively interactions: each day's load as two of the mark's bars instead of a dot.
-    var load: [String: Load]? = nil
-    /// Colour block: drawn on the slab, with the selected day as a pill around letter and number.
-    var onSlab = false
+    let load: [String: Load]
 
     struct Load {
         var eventHours = 0.0
@@ -588,58 +491,42 @@ private struct WeekStrip: View {
         let keys = DayKey.week(containing: start)
         let picked = keys.contains(day) ? day : weeks == 0 ? nil : start
         return HStack(spacing: 0) {
-            ForEach(keys, id: \.self) { cell($0, selected: $0 == picked, glides: weeks == 0 && glides) }
+            ForEach(keys, id: \.self) { cell($0, selected: $0 == picked, glides: weeks == 0) }
         }
         // The selection glides from day to day within the week.
-        .animation(glides && !reduceMotion ? .spring(duration: 0.4, bounce: 0.22) : nil, value: day)
+        .animation(reduceMotion ? nil : .spring(duration: 0.4, bounce: 0.22), value: day)
     }
-
-    private var glides: Bool { onSlab || load != nil }
 
     private func cell(_ key: String, selected: Bool, glides: Bool) -> some View {
         let date = DayKey.date(for: key)
         let calendar = Calendar.current
         let letter = calendar.veryShortStandaloneWeekdaySymbols[calendar.component(.weekday, from: date) - 1]
-        let dayLoad = load?[key] ?? Load()
+        let dayLoad = load[key] ?? Load()
+        // On the pill, the slab's colour; elsewhere, the text colour for the slab.
+        let ink = selected ? theme.slab : theme.onSlab
         return Button {
             day = key
         } label: {
             VStack(spacing: 4) {
                 Text(letter)
                     .font(.mark)
-                    .foregroundStyle(onSlab ? (selected ? AnyShapeStyle(theme.slab) : AnyShapeStyle(theme.onSlab.opacity(0.75)))
-                                     : AnyShapeStyle(.secondary))
+                    .foregroundStyle(selected ? ink : ink.opacity(0.8))
                 Text(date.formatted(.dateTime.day()))
                     .font(.dayNumber.weight(selected || key == today ? .semibold : .regular))
-                    .foregroundStyle(numberStyle(key, selected: selected))
-                    .frame(width: circle, height: onSlab ? circle * 0.8 : circle)
-                    // The selected day is filled; today keeps a ring while another day is selected.
+                    .foregroundStyle(selected || key >= today ? ink : ink.opacity(0.8))
+                    .frame(width: circle, height: circle * 0.8)
+                    // Today keeps a ring while another day is selected.
                     .background {
-                        if onSlab {
-                            if key == today && !selected {
-                                Capsule().strokeBorder(theme.onSlab.opacity(0.6), lineWidth: 1.5)
-                            }
-                        } else if selected {
-                            Circle().fill(.tint)
-                                .matchedSelection(glides, in: selection)
-                        } else if key == today {
-                            Circle().strokeBorder(.tint, lineWidth: 1.5)
+                        if key == today && !selected {
+                            Capsule().strokeBorder(ink.opacity(0.6), lineWidth: 1.5)
                         }
                     }
-                if load != nil {
-                    loadBars(key, dayLoad, selected: selected)
-                } else {
-                    Circle()
-                        .fill(busyDays.contains(key) ? (onSlab ? AnyShapeStyle(selected ? theme.slab : theme.onSlab)
-                                                        : AnyShapeStyle(.tint))
-                              : AnyShapeStyle(.clear))
-                        .frame(width: 5, height: 5)
-                }
+                loadBars(dayLoad, ink: ink)
             }
-            .padding(.vertical, onSlab ? 6 : 0)
+            .padding(.vertical, 6)
             .frame(maxWidth: .infinity)
             .background {
-                if onSlab && selected {
+                if selected {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .fill(theme.onSlab)
                         .padding(.horizontal, 3)
@@ -650,47 +537,33 @@ private struct WeekStrip: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(date.formatted(date: .complete, time: .omitted))
-        .accessibilityValue(accessibilityValue(key, dayLoad))
+        .accessibilityValue(accessibilityValue(dayLoad))
         .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityShowsLargeContentViewer {
             Text(date.formatted(.dateTime.weekday(.abbreviated).day()))
         }
     }
 
-    private func numberStyle(_ key: String, selected: Bool) -> AnyShapeStyle {
-        if onSlab {
-            return selected ? AnyShapeStyle(theme.slab) : AnyShapeStyle(theme.onSlab.opacity(key < today ? 0.7 : 1))
-        }
-        return selected ? AnyShapeStyle(.onAccent)
-            : key == today ? AnyShapeStyle(.tint)
-            : key < today ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary)
-    }
-
-    /// The day's load as two of the mark's bars: hours booked on top, tasks below. Past days' events
-    /// are the mark's grey; open tasks stay in the accent, so leftovers still show.
-    private func loadBars(_ key: String, _ load: Load, selected: Bool) -> some View {
+    /// The day's load as two of the mark's bars: hours booked on top (six hours fills it), tasks below
+    /// (five fills it). The task bar stays bright while any are open, so leftovers still show, and
+    /// dims once they're all done.
+    private func loadBars(_ load: Load, ink: Color) -> some View {
         let full: CGFloat = 26
         let events = load.eventHours > 0 ? max(5, full * min(load.eventHours / 6, 1)) : 0
         let tasks = load.open + load.done > 0 ? max(5, full * min(Double(load.open + load.done) / 5, 1)) : 0
-        let base: AnyShapeStyle = onSlab ? AnyShapeStyle(selected ? theme.slab : theme.onSlab) : AnyShapeStyle(.tint)
-        // Booked hours in a quiet ink; tasks in the accent while any are open, the mark's grey once all are done.
-        let eventStyle: AnyShapeStyle = onSlab ? AnyShapeStyle((selected ? theme.slab : theme.onSlab).opacity(0.55))
-            : AnyShapeStyle(key < today ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
-        let doneStyle: AnyShapeStyle = onSlab ? AnyShapeStyle((selected ? theme.slab : theme.onSlab).opacity(0.35))
-            : AnyShapeStyle(.past)
         return VStack(alignment: .leading, spacing: 3) {
-            Capsule().fill(eventStyle).frame(width: events, height: 4)
-            Capsule().fill(load.open > 0 ? base : doneStyle).frame(width: tasks, height: 4)
+            Capsule().fill(ink.opacity(0.55)).frame(width: events, height: 4)
+            Capsule().fill(load.open > 0 ? ink : ink.opacity(0.35)).frame(width: tasks, height: 4)
         }
         .frame(width: full, height: 11, alignment: .leading)
-        .animation(.snappy, value: tasks)
+        .animation(reduceMotion ? nil : .snappy, value: tasks)
+        .accessibilityHidden(true)
     }
 
-    private func accessibilityValue(_ key: String, _ load: Load) -> String {
-        guard self.load != nil else { return busyDays.contains(key) ? "Has open tasks" : "" }
+    private func accessibilityValue(_ load: Load) -> String {
         var parts: [String] = []
         if load.eventHours > 0 { parts.append(EventsSection.spokenDuration(minutes: Int(load.eventHours * 60)) + " of events") }
-        if load.open > 0 { parts.append("\(load.open) open tasks") }
+        if load.open > 0 { parts.append(load.open == 1 ? "1 open task" : "\(load.open) open tasks") }
         return parts.joined(separator: ", ")
     }
 }

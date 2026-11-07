@@ -87,13 +87,12 @@ private struct TaskRow: View {
     /// Ticking this one finishes the day.
     var isLastOpen = false
     @Environment(\.modelContext) private var context
-    @Environment(\.livelyInteractions) private var lively
     @Environment(\.onAllDone) private var onAllDone
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The accent wash that sweeps over the row as it's ticked.
     @State private var wash = 0.0
-    /// Lively: the row shows its new state at once and keeps its place for a beat before the list
-    /// reorders, so the tick can play where you tapped.
+    /// The row shows its new state at once and keeps its place for a beat before the list reorders,
+    /// so the tick plays where you tapped.
     @State private var pendingDone: Bool?
     private var shownDone: Bool { pendingDone ?? task.isDone }
     @State private var draft = ""
@@ -103,20 +102,14 @@ private struct TaskRow: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Button {
-                if lively {
-                    tickLively()
-                } else {
-                    withAnimation { task.isDone.toggle() }
-                }
-            } label: {
-                CheckMark(isDone: shownDone, size: checkSize, springs: lively && !reduceMotion)
+            Button(action: tick) {
+                CheckMark(isDone: shownDone, size: checkSize, springs: !reduceMotion)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
             .sensoryFeedback(trigger: shownDone) { _, done in done ? .success : .selection }
-            .accessibilityLabel(task.isDone ? "Mark not done: \(task.title)" : "Mark done: \(task.title)")
+            .accessibilityLabel(shownDone ? "Mark not done: \(task.title)" : "Mark done: \(task.title)")
 
             if isEditing {
                 TextField("Task", text: $draft)
@@ -129,8 +122,7 @@ private struct TaskRow: View {
                     .onAppear { DispatchQueue.main.async { focused = true } }
             } else {
                 Text(task.title)
-                    .strikethrough(task.isDone && !lively, color: .secondary)
-                    .modifier(DrawnStrike(isOn: shownDone && lively, animated: !reduceMotion))
+                    .modifier(DrawnStrike(isOn: shownDone, animated: !reduceMotion))
                     .foregroundStyle(shownDone ? .secondary : .primary)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                     .contentShape(Rectangle())
@@ -151,7 +143,7 @@ private struct TaskRow: View {
 
     /// Ticks with the check springing and a wash of the accent; the row waits a beat before it drops
     /// to the done tasks, so the line can draw through it first.
-    private func tickLively() {
+    private func tick() {
         let finishing = !task.isDone
         if finishing && !reduceMotion {
             withAnimation(.easeOut(duration: 0.15)) { wash = 1 }
@@ -206,7 +198,7 @@ private struct CheckMark: View {
                 .symbolEffect(.bounce, value: isDone)
         }
         .frame(width: size, height: size)
-        // Lively: the check pops past full size and settles, with a ring rippling out.
+        // The check pops past full size and settles, with a ring rippling out.
         .keyframeAnimator(initialValue: 1.0, trigger: springs ? isDone : false) { view, scale in
             view.scaleEffect(scale)
         } keyframes: { _ in
@@ -242,4 +234,30 @@ private struct CheckMark: View {
 private struct Ripple {
     var scale = 1.0
     var opacity = 0.0
+}
+
+/// A line drawn across a task's title from the leading edge, like a pen through a diary line.
+private struct DrawnStrike: ViewModifier {
+    let isOn: Bool
+    let animated: Bool
+    @State private var drawn: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(alignment: .leading) {
+                GeometryReader { geo in
+                    Capsule()
+                        .fill(.secondary)
+                        .frame(width: geo.size.width * drawn, height: 1.5)
+                        .frame(maxHeight: .infinity)
+                }
+                .allowsHitTesting(false)
+            }
+            .onAppear { drawn = isOn ? 1 : 0 }
+            .onChange(of: isOn) { _, on in
+                withAnimation(animated ? (on ? .easeOut(duration: 0.35) : .easeIn(duration: 0.2)) : nil) {
+                    drawn = on ? 1 : 0
+                }
+            }
+    }
 }
