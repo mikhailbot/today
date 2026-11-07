@@ -8,6 +8,8 @@ struct DayView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var today = DayKey.today()
     @State private var day = DayKey.today()
+    /// Today at launch; the pager's pages are counted from here.
+    @State private var anchor = DayKey.today()
     @State private var showDatePicker = false
     @State private var showSettings = false
     @State private var movingTask: TaskItem?
@@ -20,7 +22,7 @@ struct DayView: View {
                 DayTop(day: $day, today: today,
                        onPickDate: { showDatePicker = true },
                        onSettings: { showSettings = true })
-                DayPager(day: $day, today: today,
+                DayPager(day: $day, today: today, anchor: anchor,
                          onMove: move,
                          onPickMove: { movingTask = $0 },
                          onPickEvent: { shownEvent = ShownEvent(event: $0) })
@@ -41,7 +43,7 @@ struct DayView: View {
         .sheet(isPresented: $showDatePicker) { datePicker }
         .sheet(isPresented: $showSettings) { SettingsView() }
         .sheet(item: $movingTask) { task in
-            MoveSheet(task: task, today: today) { move(task, to: $0) }
+            MoveSheet(task: task, today: today, days: DayPager.days(around: anchor)) { move(task, to: $0) }
         }
         .sheet(item: $shownEvent) { EventDetailView(event: $0.event).ignoresSafeArea() }
         .task(id: lastMove?.id) {
@@ -135,7 +137,7 @@ struct DayView: View {
             DatePicker("Go to day", selection: Binding(
                 get: { DayKey.date(for: day) },
                 set: { day = DayKey.key(for: $0); showDatePicker = false }
-            ), displayedComponents: .date)
+            ), in: DayPager.days(around: anchor), displayedComponents: .date)
             .datePickerStyle(.graphical)
             .padding(.horizontal)
             .navigationTitle("Go to day")
@@ -195,18 +197,25 @@ private struct DayTop: View {
 private struct DayPager: View {
     @Binding var day: String
     let today: String
+    /// Pages are days counted from here, so their ids stay put as `day` moves.
+    let anchor: String
     let onMove: (TaskItem, String) -> Void
     let onPickMove: (TaskItem) -> Void
     let onPickEvent: (EKEvent) -> Void
 
-    /// Pages are days counted from here, so their ids stay put as `day` moves.
-    @State private var anchor = DayKey.today()
     @State private var page: Int?
+
+    static let pages = -3650...3650
+
+    /// The days the pager has pages for, for limiting date pickers.
+    static func days(around anchor: String) -> ClosedRange<Date> {
+        DayKey.date(for: DayKey.adding(pages.lowerBound, to: anchor))...DayKey.date(for: DayKey.adding(pages.upperBound, to: anchor))
+    }
 
     var body: some View {
         ScrollView(.horizontal) {
             LazyHStack(spacing: 0) {
-                ForEach(-3650...3650, id: \.self) { n in
+                ForEach(Self.pages, id: \.self) { n in
                     DayPage(day: DayKey.adding(n, to: anchor), today: today,
                             onMove: onMove, onPickMove: onPickMove, onPickEvent: onPickEvent)
                         .containerRelativeFrame(.horizontal)

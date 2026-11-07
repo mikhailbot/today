@@ -3,13 +3,15 @@ import SwiftUI
 struct MoveSheet: View {
     let task: TaskItem
     let today: String
+    let days: ClosedRange<Date>
     let onMove: (String) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var picked: Date
 
-    init(task: TaskItem, today: String, onMove: @escaping (String) -> Void) {
+    init(task: TaskItem, today: String, days: ClosedRange<Date>, onMove: @escaping (String) -> Void) {
         self.task = task
         self.today = today
+        self.days = days
         self.onMove = onMove
         _picked = State(initialValue: DayKey.date(for: task.day))
     }
@@ -26,7 +28,7 @@ struct MoveSheet: View {
                         .lineLimit(2)
                 }
                 Section {
-                    DatePicker("Day", selection: $picked, displayedComponents: .date)
+                    DatePicker("Day", selection: $picked, in: days, displayedComponents: .date)
                         .datePickerStyle(.graphical)
                 }
             }

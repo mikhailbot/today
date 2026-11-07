@@ -15,11 +15,17 @@ struct WelcomeView: View {
                     .foregroundStyle(.secondary)
             }
             .multilineTextAlignment(.center)
-            Label("Events are only read, never changed or copied. Tasks stay in your iCloud.", systemImage: "lock")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .padding()
-                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+            Group {
+                #if ICLOUD_SYNC
+                Label("Events are only read, never changed or copied. Tasks stay in your iCloud.", systemImage: "lock")
+                #else
+                Label("Events are only read, never changed or copied. Tasks stay on this iPhone.", systemImage: "lock")
+                #endif
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .padding()
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
             Spacer()
             VStack(spacing: 12) {
                 Button {
