@@ -27,7 +27,7 @@ struct DayView: View {
                          onPickMove: { movingTask = $0 },
                          onPickEvent: { shownEvent = ShownEvent(event: $0) })
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color(.systemBackground))
             .toolbar(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .bottom) {
                 VStack {
@@ -284,6 +284,7 @@ private struct DayPage: View {
     var body: some View {
         List {
             EventsSection(day: day, today: today, onPickEvent: onPickEvent)
+                .listRowBackground(Color.clear)
 
             if day == today && !leftovers.isEmpty && leftoversHiddenOn != today {
                 Section {
@@ -300,9 +301,11 @@ private struct DayPage: View {
                          onMove: onMove, onPickMove: onPickMove)
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
         .environment(\.defaultMinListRowHeight, 0)
-        .contentMargins(.horizontal, 16, for: .scrollContent)
-        .contentMargins(.top, 0, for: .scrollContent)
+        // Rows sit straight on the page, so their text lines up with the header's 20 pt margin.
+        .contentMargins(.horizontal, 4, for: .scrollContent)
+        .contentMargins(.top, 4, for: .scrollContent)
         .scrollDismissesKeyboard(.interactively)
     }
 }
