@@ -225,11 +225,20 @@ struct EventsSection: View {
         .accessibilityLabel("Now, \(time(now))")
     }
 
+    /// One of the icon's bars, past or future, beside a word about the day.
     private var emptyRow: some View {
-        Text("No events")
-            .foregroundStyle(.secondary)
-            .listRowInsets(rowInsets)
-            .listRowSeparator(.hidden)
+        let past = day < today
+        return HStack(spacing: 10) {
+            Capsule()
+                .fill(past ? AnyShapeStyle(.past) : AnyShapeStyle(.future))
+                .frame(width: 28, height: 5)
+                .frame(width: typeSize.isAccessibilitySize ? nil : timeColumn, alignment: .leading)
+                .accessibilityHidden(true)
+            Text(past ? "Nothing was scheduled" : "A clear day")
+                .foregroundStyle(.secondary)
+        }
+        .listRowInsets(rowInsets)
+        .listRowSeparator(.hidden)
     }
 
     private var accessRow: some View {

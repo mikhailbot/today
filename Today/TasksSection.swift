@@ -58,11 +58,18 @@ struct TasksSection: View {
                 .foregroundStyle(.tint)
                 .frame(width: 44, height: 44)
                 .accessibilityHidden(true)
-            TextField("Add a task", text: $newTitle)
+            TextField(placeholder, text: $newTitle)
                 .focused($addFocused)
                 .submitLabel(.done)
                 .onSubmit(add)
         }
+    }
+
+    /// An empty list asks a question instead of showing a bare field.
+    private var placeholder: String {
+        guard tasks.isEmpty, day >= today else { return "Add a task" }
+        if day == today { return "What needs doing today?" }
+        return "Plan something for \(DayKey.date(for: day).formatted(.dateTime.weekday(.wide)))"
     }
 
     private func add() {
