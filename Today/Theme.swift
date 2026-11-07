@@ -6,6 +6,13 @@ import UIKit
 enum Theme: String, CaseIterable, Identifiable {
     /// Indigo, the app icon's colour. Stored as "standard" from when this setting was a highlight colour.
     case standard, clay, moss, tide, plum, graphite
+    /// Bolder themes from the design lab: butter-yellow paper, and cobalt paper with a coral now.
+    case marigold, cobalt
+
+    /// The themes the picker offers. The bold ones only show with the rich papers in the design lab.
+    static var offered: [Theme] {
+        PaperStyle.active == .rich ? allCases : [.standard, .clay, .moss, .tide, .plum, .graphite]
+    }
 
     /// The key of the highlight colour setting this replaced, so a stored choice carries over.
     static let storageKey = "highlight"
@@ -19,6 +26,8 @@ enum Theme: String, CaseIterable, Identifiable {
         case "tide", "teal": self = .tide
         case "plum", "pink", "purple": self = .plum
         case "graphite": self = .graphite
+        case "marigold": self = .marigold
+        case "cobalt": self = .cobalt
         default: return nil
         }
     }
@@ -53,8 +62,15 @@ enum Theme: String, CaseIterable, Identifiable {
     }
 
     func palette(_ scheme: ColorScheme) -> Palette {
+        PaperStyle.active == .rich ? richPalette(scheme) : classicPalette(scheme)
+    }
+
+    /// The shipped palettes: near-white tinted papers, near-black dark modes.
+    private func classicPalette(_ scheme: ColorScheme) -> Palette {
         let dark = scheme == .dark
         switch self {
+        case .marigold, .cobalt:
+            return richPalette(scheme)
         case .standard:
             return dark
                 ? Palette(accent: 0x93A5FF, now: 0x93A5FF, paper: 0x0F1017, card: 0x1B1C26, ink: 0xECEEF8,
@@ -93,6 +109,83 @@ enum Theme: String, CaseIterable, Identifiable {
                 : Palette(accent: 0x2F2F31, now: 0xB83A26, paper: 0xF4F3EF, card: 0xFBFAF7, ink: 0x1C1C1C,
                           secondaryInk: 0x5E5D59, tertiaryInk: 0x98968F, past: 0xE3E1DB, future: 0xC9C7C0)
         }
+    }
+
+    /// Design lab: papers you can see the colour of, and dark modes on coloured paper (navy, espresso,
+    /// forest, deep sea, aubergine) instead of near-black.
+    private func richPalette(_ scheme: ColorScheme) -> Palette {
+        let dark = scheme == .dark
+        switch self {
+        case .standard:
+            return dark
+                ? Palette(accent: 0x9DAEFF, now: 0x9DAEFF, paper: 0x121A3D, card: 0x1C2550, ink: 0xE9ECFF,
+                          secondaryInk: 0xA6AED6, tertiaryInk: 0x7880AD, past: 0x2A3462, future: 0x34418A)
+                : Palette(accent: 0x3347D1, now: 0x3347D1, paper: 0xE6EBFD, card: 0xF6F8FF, ink: 0x161A33,
+                          secondaryInk: 0x4A5072, tertiaryInk: 0x767C9E, past: 0xD0D6EE, future: 0xAFBBF5)
+        case .clay:
+            return dark
+                ? Palette(accent: 0xFF9D74, now: 0xFF9D74, paper: 0x2A1812, card: 0x38221A, ink: 0xF8E9DE,
+                          secondaryInk: 0xC6A997, tertiaryInk: 0x977A69, past: 0x4A3027, future: 0x6B3826)
+                : Palette(accent: 0xAE3F1B, now: 0xAE3F1B, paper: 0xF5E3D3, card: 0xFFF6EE, ink: 0x2E1D14,
+                          secondaryInk: 0x6E5446, tertiaryInk: 0x987E6F, past: 0xE6D0BF, future: 0xEDB29B)
+        case .moss:
+            return dark
+                ? Palette(accent: 0x8FDB9C, now: 0x8FDB9C, paper: 0x10241A, card: 0x1A3325, ink: 0xE4F1E6,
+                          secondaryInk: 0x9DBBA4, tertiaryInk: 0x6E8E79, past: 0x22402F, future: 0x2A5A3B)
+                : Palette(accent: 0x2B6537, now: 0x2B6537, paper: 0xE1EBD6, card: 0xF4F8EF, ink: 0x17241A,
+                          secondaryInk: 0x4C5F4E, tertiaryInk: 0x728476, past: 0xCCDAC0, future: 0xA6C8A6)
+        case .tide:
+            return dark
+                ? Palette(accent: 0x5FDDE8, now: 0x5FDDE8, paper: 0x0A2429, card: 0x123239, ink: 0xDDF3F5,
+                          secondaryInk: 0x8FB8BD, tertiaryInk: 0x618A90, past: 0x1C3F45, future: 0x18565E)
+                : Palette(accent: 0x006A76, now: 0x006A76, paper: 0xD9EDEE, card: 0xF1F9F9, ink: 0x0F2A2E,
+                          secondaryInk: 0x46666B, tertiaryInk: 0x6A878B, past: 0xC4DCDE, future: 0x98D0D6)
+        case .plum:
+            return dark
+                ? Palette(accent: 0xF29BD8, now: 0xF29BD8, paper: 0x26122A, card: 0x351C3A, ink: 0xF6E4F2,
+                          secondaryInk: 0xC4A1BD, tertiaryInk: 0x93708E, past: 0x3F2744, future: 0x5C2C5A)
+                : Palette(accent: 0x88276C, now: 0x88276C, paper: 0xF3DFEB, card: 0xFCF3F8, ink: 0x2C1424,
+                          secondaryInk: 0x6B4A5F, tertiaryInk: 0x96778B, past: 0xE4CCDA, future: 0xE0AFD1)
+        case .graphite:
+            return dark
+                ? Palette(accent: 0xF0EEE8, now: 0xFF6B4A, paper: 0x1E1D1B, card: 0x2A2926, ink: 0xF0EEE8,
+                          secondaryInk: 0xB0ADA5, tertiaryInk: 0x7F7D76, past: 0x3A3936, future: 0x605E58)
+                : Palette(accent: 0x1E1E20, now: 0xB3301A, paper: 0xE8E6E0, card: 0xF7F6F2, ink: 0x161616,
+                          secondaryInk: 0x55534E, tertiaryInk: 0x84827B, past: 0xD6D3CB, future: 0xBBB7AD)
+        case .marigold:
+            // Butter-yellow paper with a tomato accent; dark is burnt amber with a marigold accent.
+            return dark
+                ? Palette(accent: 0xFFB627, now: 0xFFB627, paper: 0x2B1D06, card: 0x3A2A0E, ink: 0xFFF1CF,
+                          secondaryInk: 0xD8BE84, tertiaryInk: 0xA38C58, past: 0x4A3815, future: 0x6E4A10)
+                : Palette(accent: 0xB93A0A, now: 0xB93A0A, paper: 0xFBE6A6, card: 0xFFF5D6, ink: 0x2A1D05,
+                          secondaryInk: 0x67511C, tertiaryInk: 0x8E7841, past: 0xEDD187, future: 0xF2B26A)
+        case .cobalt:
+            // Cobalt paper with a coral now; dark is deep ultramarine with a yellow accent.
+            return dark
+                ? Palette(accent: 0xFFD54A, now: 0xFF8466, paper: 0x0C1A52, card: 0x16276A, ink: 0xEEF2FF,
+                          secondaryInk: 0xA9B8EC, tertiaryInk: 0x7D8ECD, past: 0x22337A, future: 0x2C47A8)
+                : Palette(accent: 0x1A3AD6, now: 0xB52E10, paper: 0xD3E0FF, card: 0xEEF3FF, ink: 0x0A1640,
+                          secondaryInk: 0x3A4A80, tertiaryInk: 0x66759F, past: 0xBCCBF2, future: 0x98B0FF)
+        }
+    }
+
+    /// Colour block's slab: the light accent, deepened a little in dark mode so it stays a colour
+    /// rather than a pastel. Graphite uses its red now, its one colour.
+    var slab: Color {
+        Color(uiColor: UIColor { traits in
+            let light = self.palette(.light)
+            let base = UIColor(hex: self == .graphite ? light.now : light.accent)
+            return traits.userInterfaceStyle == .dark ? base.mixed(with: .black, by: 0.28) : base
+        })
+    }
+
+    /// Text on the slab: white or the ink, whichever reads better.
+    var onSlab: Color {
+        Color(uiColor: UIColor { traits in
+            let slab = UIColor(self.slab).resolvedColor(with: traits)
+            let ink = UIColor(hex: self.palette(.light).ink)
+            return slab.contrastRatio(with: .white) >= slab.contrastRatio(with: ink) ? .white : ink
+        })
     }
 
     /// One palette colour, following light and dark.
@@ -150,6 +243,16 @@ extension UIColor {
     convenience init(hex: UInt32) {
         self.init(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
                   blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+    }
+
+    /// This colour moved `amount` of the way to another, in sRGB.
+    func mixed(with other: UIColor, by amount: CGFloat) -> UIColor {
+        var r1: CGFloat = 0, g1: CGFloat = 0, b1: CGFloat = 0, a1: CGFloat = 0
+        var r2: CGFloat = 0, g2: CGFloat = 0, b2: CGFloat = 0, a2: CGFloat = 0
+        getRed(&r1, green: &g1, blue: &b1, alpha: &a1)
+        other.getRed(&r2, green: &g2, blue: &b2, alpha: &a2)
+        return UIColor(red: r1 + (r2 - r1) * amount, green: g1 + (g2 - g1) * amount,
+                       blue: b1 + (b2 - b1) * amount, alpha: a1 + (a2 - a1) * amount)
     }
 
     /// WCAG relative luminance of the colour in sRGB.

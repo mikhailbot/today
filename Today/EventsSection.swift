@@ -12,6 +12,7 @@ struct EventsSection: View {
     @Environment(CalendarStore.self) private var calendar
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.designDirection) private var direction
     @AppStorage(HiddenCalendars.storageKey) private var hiddenRaw = ""
     @State private var events: [EKEvent] = []
     @State private var now = Date()
@@ -25,7 +26,7 @@ struct EventsSection: View {
     var body: some View {
         Section {
             if calendar.hasAccess {
-                eventRows
+                if direction == .calendarColour { cardRows } else { eventRows }
             } else {
                 accessRow
             }
@@ -78,6 +79,61 @@ struct EventsSection: View {
         }
         ForEach(rest, id: \.calendarItemIdentifier) { event in
             row(event, time: startText(event), past: false, live: isToday && event.startDate <= now)
+        }
+    }
+
+    /// Calendar colour: cards in each calendar's colour, the event in progress as a hero card, and the
+    /// free time between events.
+    @ViewBuilder private var cardRows: some View {
+        let allDay = events.filter(\.isAllDay)
+        let timed = events.filter { !$0.isAllDay }
+        let isToday = day == today
+        let past = isToday ? timed.filter { $0.endDate <= now } : []
+        let rest = isToday ? timed.filter { $0.endDate > now } : timed
+        let live = isToday ? rest.first { $0.startDate <= now } : nil
+        let cardInsets = EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16)
+
+        if events.isEmpty {
+            emptyRow
+        }
+        if !allDay.isEmpty {
+            AllDayChips(events: allDay, onPick: onPickEvent)
+                .listRowInsets(cardInsets)
+                .listRowSeparator(.hidden)
+        }
+        if past.count > pastShown { earlierRow(count: past.count) }
+        if past.count <= pastShown || showsEarlier {
+            ForEach(past, id: \.calendarItemIdentifier) { event in
+                EventCard(event: event, time: startText(event), past: true, timeColumn: timeColumn) { onPickEvent(event) }
+                    .listRowInsets(cardInsets)
+                    .listRowSeparator(.hidden)
+            }
+        }
+        if isToday, !timed.isEmpty, live == nil {
+            nowLine
+            if let next = rest.first { freeGap(from: now, to: next.startDate) }
+        }
+        ForEach(Array(rest.enumerated()), id: \.element.calendarItemIdentifier) { i, event in
+            if i > 0 { freeGap(from: rest[i - 1].endDate, to: event.startDate) }
+            if event === live {
+                HeroEventCard(event: event, now: now) { onPickEvent(event) }
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowSeparator(.hidden)
+            } else {
+                EventCard(event: event, time: startText(event), past: false, timeColumn: timeColumn) { onPickEvent(event) }
+                    .listRowInsets(cardInsets)
+                    .listRowSeparator(.hidden)
+            }
+        }
+    }
+
+    /// Quarter of an hour or more between events reads as free time.
+    @ViewBuilder private func freeGap(from start: Date, to end: Date) -> some View {
+        let minutes = Int(end.timeIntervalSince(start) / 60)
+        if minutes >= 15 {
+            FreeGap(minutes: minutes, timeColumn: timeColumn)
+                .listRowInsets(EdgeInsets(top: 2, leading: 16, bottom: 2, trailing: 16))
+                .listRowSeparator(.hidden)
         }
     }
 

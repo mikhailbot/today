@@ -21,7 +21,7 @@ struct TasksSection: View {
     var body: some View {
         Section {
             ForEach(tasks) { task in
-                TaskRow(task: task)
+                TaskRow(task: task, isLastOpen: !task.isDone && openCount == 1 && day == today)
                     // The lifted preview is this row's own rounded shape, 12 pt in from both screen
                     // edges, so it lifts inside the page with room to grow. The row inside keeps its
                     // place: the check in line with the plus below, the title clear of the right margin.
@@ -84,7 +84,18 @@ struct TasksSection: View {
 
 private struct TaskRow: View {
     @Bindable var task: TaskItem
+    /// Ticking this one finishes the day.
+    var isLastOpen = false
     @Environment(\.modelContext) private var context
+    @Environment(\.livelyInteractions) private var lively
+    @Environment(\.onAllDone) private var onAllDone
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The accent wash that sweeps over the row as it's ticked.
+    @State private var wash = 0.0
+    /// Lively: the row shows its new state at once and keeps its place for a beat before the list
+    /// reorders, so the tick can play where you tapped.
+    @State private var pendingDone: Bool?
+    private var shownDone: Bool { pendingDone ?? task.isDone }
     @State private var draft = ""
     @State private var isEditing = false
     @FocusState private var focused: Bool
@@ -93,14 +104,18 @@ private struct TaskRow: View {
     var body: some View {
         HStack(spacing: 4) {
             Button {
-                withAnimation { task.isDone.toggle() }
+                if lively {
+                    tickLively()
+                } else {
+                    withAnimation { task.isDone.toggle() }
+                }
             } label: {
-                CheckMark(isDone: task.isDone, size: checkSize)
+                CheckMark(isDone: shownDone, size: checkSize, springs: lively && !reduceMotion)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
-            .sensoryFeedback(trigger: task.isDone) { _, done in done ? .success : .selection }
+            .sensoryFeedback(trigger: shownDone) { _, done in done ? .success : .selection }
             .accessibilityLabel(task.isDone ? "Mark not done: \(task.title)" : "Mark done: \(task.title)")
 
             if isEditing {
@@ -114,8 +129,9 @@ private struct TaskRow: View {
                     .onAppear { DispatchQueue.main.async { focused = true } }
             } else {
                 Text(task.title)
-                    .strikethrough(task.isDone, color: .secondary)
-                    .foregroundStyle(task.isDone ? .secondary : .primary)
+                    .strikethrough(task.isDone && !lively, color: .secondary)
+                    .modifier(DrawnStrike(isOn: shownDone && lively, animated: !reduceMotion))
+                    .foregroundStyle(shownDone ? .secondary : .primary)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                     .contentShape(Rectangle())
                     .onTapGesture {
@@ -125,6 +141,35 @@ private struct TaskRow: View {
                     .accessibilityAddTraits(.isButton)
                     .accessibilityHint("Edit title")
             }
+        }
+        .background {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.tint.opacity(0.2 * wash))
+                .padding(.leading, 4)
+        }
+    }
+
+    /// Ticks with the check springing and a wash of the accent; the row waits a beat before it drops
+    /// to the done tasks, so the line can draw through it first.
+    private func tickLively() {
+        let finishing = !task.isDone
+        if finishing && !reduceMotion {
+            withAnimation(.easeOut(duration: 0.15)) { wash = 1 }
+            Task {
+                try? await Task.sleep(for: .seconds(0.3))
+                withAnimation(.easeOut(duration: 0.8)) { wash = 0 }
+            }
+        }
+        // The done state shows on the row at once; the list reorders a moment later.
+        withAnimation(.spring(duration: 0.35, bounce: 0.5)) { pendingDone = finishing }
+        let last = finishing && isLastOpen
+        Task {
+            try? await Task.sleep(for: .seconds(reduceMotion ? 0 : 0.6))
+            withAnimation(.snappy) {
+                task.isDone = finishing
+                pendingDone = nil
+            }
+            if last { onAllDone() }
         }
     }
 
@@ -145,6 +190,7 @@ private struct TaskRow: View {
 private struct CheckMark: View {
     let isDone: Bool
     let size: CGFloat
+    var springs = false
 
     var body: some View {
         ZStack {
@@ -160,6 +206,40 @@ private struct CheckMark: View {
                 .symbolEffect(.bounce, value: isDone)
         }
         .frame(width: size, height: size)
+        // Lively: the check pops past full size and settles, with a ring rippling out.
+        .keyframeAnimator(initialValue: 1.0, trigger: springs ? isDone : false) { view, scale in
+            view.scaleEffect(scale)
+        } keyframes: { _ in
+            let pops = springs && isDone
+            KeyframeTrack {
+                CubicKeyframe(pops ? 0.7 : 1, duration: 0.08)
+                SpringKeyframe(pops ? 1.25 : 1, duration: 0.18, spring: .bouncy)
+                SpringKeyframe(1, duration: 0.3, spring: .bouncy(duration: 0.3, extraBounce: 0.2))
+            }
+        }
+        .background {
+            if springs {
+                Circle()
+                    .stroke(.tint, lineWidth: 2)
+                    .keyframeAnimator(initialValue: Ripple(), trigger: isDone) { view, r in
+                        view.scaleEffect(r.scale).opacity(r.opacity)
+                    } keyframes: { _ in
+                        KeyframeTrack(\.scale) {
+                            LinearKeyframe(1, duration: 0.05)
+                            CubicKeyframe(isDone ? 2.1 : 1, duration: 0.45)
+                        }
+                        KeyframeTrack(\.opacity) {
+                            LinearKeyframe(isDone ? 0.8 : 0, duration: 0.05)
+                            CubicKeyframe(0, duration: 0.45)
+                        }
+                    }
+            }
+        }
         .accessibilityHidden(true)
     }
+}
+
+private struct Ripple {
+    var scale = 1.0
+    var opacity = 0.0
 }
