@@ -9,16 +9,17 @@ Mockups: https://claude.ai/artifact/NfGdgfthtg9pugdXn53brr
 What it does:
 
 - Shows the events for the selected day (today when the app opens), read from the calendars set up on the device.
+- Lets you add, edit and delete events through Apple's own event screens.
 - Lets you add a task to any day, tick it off, fix its title, delete it, and move an unfinished task to another day.
 - Syncs tasks across your own devices through iCloud.
 
-What it doesn't do (YAGNI): due times, reminders or notifications, recurrence, priorities, tags, projects, subtasks, notes, editing calendar events, accounts, or any server.
+What it doesn't do (YAGNI): due times, reminders or notifications, recurrence, priorities, tags, projects, subtasks, notes, a custom event editor, accounts, or any server.
 
 ## Screens
 
 | Screen | Purpose |
 | --- | --- |
-| Day view | Date header with a week strip, then calendar events, then tasks with an inline "Add a task" field. Tap an event for Apple's event detail sheet; tap a task's title to edit it. |
+| Day view | Date header with a week strip, then calendar events, then tasks with an inline "Add a task" field. Tap an event for Apple's event detail sheet; the floating calendar button in the corner adds an event on that day. Tap a task's title to edit it. |
 | Move to… | Long-press a task for **Tomorrow** (one tap) or **Move…**, which opens a sheet with Tomorrow, Next week and a month picker, and **Delete**. Done tasks only offer Delete. |
 | Leftovers prompt | When yesterday still has open tasks, a banner on today offers **Bring to today** (moves them all) or **Not now** (hides the banner until tomorrow). Nothing moves without asking. |
 | Settings | Turn individual calendars on or off. Shows iCloud sync status. |
@@ -32,7 +33,7 @@ What it doesn't do (YAGNI): due times, reminders or notifications, recurrence, p
 - **Tasks can be added to any day** you're viewing, past or future.
 - **Tasks can be edited and deleted**: tap the title to edit it in place, long-press for Delete. Task rows have no swipe actions, so a horizontal swipe anywhere on the day always changes the day.
 - **Finished tasks are kept forever**, so browsing back shows what got done. No cleanup logic.
-- **Tapping an event** opens Apple's own event detail sheet, read-only.
+- **Events are edited with Apple's screens.** Tapping an event opens Apple's event detail sheet, with its Edit and Delete for events you can change; the floating calendar button opens Apple's event editor, starting at the next hour today or 9:00 on other days, in the default calendar. Apple's detail sheet always shows Delete (`allowsEditing` only hides Edit), so a read-only sheet wasn't possible.
 - **Declined invitations are hidden.** All-day events show as a slim row at the top of the events card.
 - **iPhone only.** iCloud sync still covers a second iPhone or a reinstall.
 - **No quick add from outside the app** in v1 (no Siri, Shortcuts or Control Center).
@@ -42,11 +43,12 @@ What it doesn't do (YAGNI): due times, reminders or notifications, recurrence, p
 All built-in frameworks, iOS 17+, iPhone only (`TARGETED_DEVICE_FAMILY = 1`).
 
 - **SwiftUI**, one `NavigationStack`, no tab bar.
-- **EventKit** for reading events, never writing them.
+- **EventKit** for reading events. Only Apple's EventKitUI screens write them.
   - `EKEventStore.requestFullAccessToEvents()` with `NSCalendarsFullAccessUsageDescription` in Info.plist. Write-only access can't read events.
   - `events(matching: predicateForEvents(withStart:end:calendars:))` for the visible day, filtered to the calendars the user has turned on.
   - Skip events where the current user's attendee entry (`isCurrentUser`) has `participantStatus == .declined`.
-  - Event detail: `EKEventViewController` with `allowsEditing = false`, wrapped in a `UIViewControllerRepresentable` and shown as a sheet.
+  - Event detail: `EKEventViewController` with `allowsEditing = true`, wrapped in a `UIViewControllerRepresentable` and shown as a sheet.
+  - New event: `EKEventEditViewController` with an unsaved `EKEvent` on the viewed day, also wrapped and shown as a sheet. It saves to the store itself.
   - Listen for `.EKEventStoreChanged` and refetch.
   - Store the IDs of hidden calendars (`calendarIdentifier`) in `@AppStorage`. Events themselves are never stored.
 - **SwiftData + CloudKit** (private database) for tasks.

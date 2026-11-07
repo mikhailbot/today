@@ -14,7 +14,9 @@ struct DayView: View {
     @State private var showSettings = false
     @State private var movingTask: TaskItem?
     @State private var shownEvent: ShownEvent?
+    @State private var newEvent: ShownEvent?
     @State private var lastMove: LastMove?
+    @State private var keyboardUp = false
 
     var body: some View {
         NavigationStack {
@@ -33,11 +35,23 @@ struct DayView: View {
             .background(.paper)
             .toolbar(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .bottom) {
-                VStack {
-                    if lastMove != nil {
-                        toast
-                    } else if day != today {
-                        todayPill
+                ZStack(alignment: .bottomTrailing) {
+                    VStack {
+                        if lastMove != nil {
+                            toast
+                        } else if day != today {
+                            todayPill
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    // Steps aside for the toast, which spans the bottom, and while typing a task.
+                    if lastMove == nil && !keyboardUp && calendar.hasAccess {
+                        AddEventButton { newEvent = ShownEvent(event: calendar.newEvent(on: day)) }
+                            // Grows with text up to here, then the large content viewer takes over.
+                            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                            .padding(.trailing, 20)
+                            .padding(.bottom, 8)
+                            .transition(.scale(scale: 0.8).combined(with: .opacity))
                     }
                 }
                 .animation(.snappy, value: day == today)
@@ -49,11 +63,18 @@ struct DayView: View {
             MoveSheet(task: task, today: today, days: DayPager.days(around: anchor)) { move(task, to: $0) }
         }
         .sheet(item: $shownEvent) { EventDetailView(event: $0.event).ignoresSafeArea() }
+        .sheet(item: $newEvent) { EventEditView(event: $0.event, store: calendar.store).ignoresSafeArea() }
         .task(id: lastMove?.id) {
             guard lastMove != nil else { return }
             try? await Task.sleep(for: .seconds(4))
             guard !Task.isCancelled else { return }
             withAnimation { lastMove = nil }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            withAnimation(.snappy) { keyboardUp = true }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            withAnimation(.snappy) { keyboardUp = false }
         }
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged).receive(on: RunLoop.main)) { _ in
             updateToday()
@@ -157,6 +178,30 @@ struct DayView: View {
         }
         .themedSheet()
         .presentationDetents([.medium, .large])
+    }
+}
+
+/// Floats in the corner on every day; opens Apple's new-event editor on the day shown.
+private struct AddEventButton: View {
+    let action: () -> Void
+    /// The icon's area; the glass adds its own padding, for about 56 pt across.
+    @ScaledMetric(relativeTo: .title2) private var size: CGFloat = 40
+
+    var body: some View {
+        Button(action: action) {
+            // A calendar, not a bare plus, since tasks are added in the list.
+            Image(systemName: "calendar.badge.plus")
+                .font(.title2.weight(.medium))
+                .foregroundStyle(.tint)
+                .frame(width: size, height: size)
+        }
+        // Quiet, like the settings button and the Today pill beside it.
+        .glassButton()
+        .buttonBorderShape(.circle)
+        .accessibilityLabel("Add event")
+        .accessibilityShowsLargeContentViewer {
+            Label("Add event", systemImage: "calendar.badge.plus")
+        }
     }
 }
 

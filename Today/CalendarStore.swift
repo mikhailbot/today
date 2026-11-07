@@ -45,6 +45,21 @@ final class CalendarStore {
             .sorted { $0.startDate < $1.startDate }
     }
 
+    /// An unsaved hour-long event on the given day, in the default calendar: from the next hour
+    /// today, 9:00 on other days.
+    func newEvent(on day: String) -> EKEvent {
+        let calendar = Calendar.current
+        let date = DayKey.date(for: day)
+        let start = calendar.isDateInToday(date)
+            ? calendar.nextDate(after: Date(), matching: DateComponents(minute: 0), matchingPolicy: .nextTime)!
+            : calendar.date(bySettingHour: 9, minute: 0, second: 0, of: date)!
+        let event = EKEvent(eventStore: store)
+        event.startDate = start
+        event.endDate = start.addingTimeInterval(60 * 60)
+        event.calendar = store.defaultCalendarForNewEvents
+        return event
+    }
+
     static func openSettings() {
         if let url = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(url)
