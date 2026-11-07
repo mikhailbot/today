@@ -306,7 +306,9 @@ private struct DayPage: View {
             TasksSection(day: day, today: today, tasks: TaskItem.ordered(tasks),
                          onMove: onMove, onPickMove: onPickMove)
         }
-        .listStyle(.insetGrouped)
+        // Grouped, not inset grouped: rows sit on the page with no card, and an inset-grouped section
+        // rounds the top of its first cell, which showed through as larger corners on a lifting row.
+        .listStyle(.grouped)
         .scrollContentBackground(.hidden)
         .environment(\.defaultMinListRowHeight, 0)
         // Rows sit straight on the page, so their text lines up with the header's 20 pt margin.

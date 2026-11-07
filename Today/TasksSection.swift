@@ -13,6 +13,7 @@ struct TasksSection: View {
     @FocusState private var addFocused: Bool
 
     private let rowInsets = EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 16)
+    private let liftInsets = EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8)
     /// Every row lifts as the same rounded shape when long-pressed, wherever it sits in the list.
     private let liftShape = RoundedRectangle(cornerRadius: 14, style: .continuous)
     private var openCount: Int { tasks.filter { !$0.isDone }.count }
@@ -21,13 +22,13 @@ struct TasksSection: View {
         Section {
             ForEach(tasks) { task in
                 TaskRow(task: task)
-                    // The lifted preview gets its own padding and corners instead of the list cell's,
-                    // which were rounded or square depending on the row's position.
-                    .padding(.horizontal, 8)
+                    // The lifted preview is this row's own rounded shape, 12 pt in from both screen
+                    // edges, so it lifts inside the page with room to grow. The row inside keeps its
+                    // place: the check in line with the plus below, the title clear of the right margin.
+                    .padding(EdgeInsets(top: 0, leading: -4, bottom: 0, trailing: 8))
                     .background(.paper)
                     .contentShape(.contextMenuPreview, liftShape)
-                    .padding(.horizontal, -8)
-                    .listRowInsets(rowInsets)
+                    .listRowInsets(liftInsets)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .contextMenu {
