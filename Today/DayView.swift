@@ -194,9 +194,6 @@ private struct DayTop: View {
                     // Seven days have to fit across the screen; past this size they'd push the whole day
                     // view wider than the screen. Long-pressing a day shows it enlarged instead.
                     .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                DayProgress(fraction: day < today ? 1 : day > today ? 0 : DayProgress.fraction(at: context.date),
-                            showsNow: day == today)
-                    .padding(.top, 2)
             }
         }
         .padding(.horizontal, 20)
@@ -319,35 +316,6 @@ private struct DayPage: View {
 }
 
 /// The date, which opens the day picker, and settings. Jumping back to today is the floating pill.
-/// The icon's mark as the day's progress: hours gone in grey, the dot at now, the rest in light tint.
-/// Days before today are all past; days after are all future, with no dot.
-private struct DayProgress: View {
-    let fraction: Double
-    let showsNow: Bool
-
-    static func fraction(at now: Date) -> Double {
-        let start = Calendar.current.startOfDay(for: now)
-        let end = Calendar.current.date(byAdding: .day, value: 1, to: start)!
-        return min(max(now.timeIntervalSince(start) / end.timeIntervalSince(start), 0), 1)
-    }
-
-    var body: some View {
-        GeometryReader { geo in
-            let x = geo.size.width * fraction
-            ZStack(alignment: .leading) {
-                Capsule().fill(.future).frame(height: 3)
-                Capsule().fill(.past).frame(width: x, height: 3)
-                if showsNow {
-                    NowDot(size: 11, pulses: true).offset(x: x - 5.5)
-                }
-            }
-            .frame(maxHeight: .infinity)
-        }
-        .frame(height: 18)
-        .accessibilityHidden(true)
-    }
-}
-
 private struct DayHeader: View {
     let day: String
     let today: String

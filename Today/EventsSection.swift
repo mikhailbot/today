@@ -85,12 +85,16 @@ struct EventsSection: View {
 
     /// Every row shares the same padding so the gaps between events are even.
     private let rowInsets = EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16)
+    /// The calendar bars' width and the gap after them. The now dots centre on the bars.
+    private let barWidth: CGFloat = 4
+    private let barGap: CGFloat = 10
+    private let nowDot: CGFloat = 10
 
     /// The calendar's colour as one of the icon's short bars; grey once the event is over.
     private func bar(_ event: EKEvent, past: Bool) -> some View {
         Capsule()
             .fill(past ? AnyShapeStyle(.past) : AnyShapeStyle(Color(cgColor: event.calendar.cgColor)))
-            .frame(width: 4, height: 16)
+            .frame(width: barWidth, height: 16)
             // Centre on the title's lowercase letters rather than sitting on the baseline.
             .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
     }
@@ -124,13 +128,13 @@ struct EventsSection: View {
                             Spacer()
                             if !past && !event.isAllDay && !isCarriedOver(event) { durationLabel(event) }
                         }
-                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        HStack(alignment: .firstTextBaseline, spacing: barGap) {
                             bar(event, past: past)
                             details(event, past: past, live: live)
                         }
                     }
                 } else {
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    HStack(alignment: .firstTextBaseline, spacing: barGap) {
                         timeLabel(time, past: past)
                             .frame(width: timeColumn, alignment: .leading)
                             .fixedSize(horizontal: false, vertical: true)
@@ -175,6 +179,8 @@ struct EventsSection: View {
             }
             if live {
                 ProgressLine(fraction: now.timeIntervalSince(event.startDate) / event.endDate.timeIntervalSince(event.startDate))
+                    // Starts under the calendar bar, so the dot sets off from the bar's centre.
+                    .padding(.leading, -(barGap + barWidth / 2))
                     .padding(.top, 6)
                 Text("\(Int((event.endDate.timeIntervalSince(now) / 60).rounded(.up))) min left")
                     .font(.detail)
@@ -226,14 +232,25 @@ struct EventsSection: View {
         .accessibilityLabel(showsEarlier ? "Hide earlier events" : "Show \(count) earlier events")
     }
 
-    /// The icon's mark between events, carrying the time.
-    private var nowLine: some View {
-        HStack(spacing: 10) {
-            Text(time(now))
-                .font(.time.weight(.bold))
-                .foregroundStyle(.now)
-                .frame(minWidth: typeSize.isAccessibilitySize ? nil : timeColumn, alignment: .leading)
-            NowLine()
+    /// The icon's mark between events, carrying the time, with its dot centred on the calendar bars.
+    @ViewBuilder private var nowLine: some View {
+        let line = NowLine(dot: nowDot).padding(.leading, (barWidth - nowDot) / 2)
+        let label = Text(time(now))
+            .font(.time.weight(.bold))
+            .foregroundStyle(.now)
+        Group {
+            if typeSize.isAccessibilitySize {
+                // The bars sit at the start of the row here, under the time.
+                VStack(alignment: .leading, spacing: 2) {
+                    label
+                    line
+                }
+            } else {
+                HStack(spacing: barGap) {
+                    label.frame(width: timeColumn, alignment: .leading)
+                    line
+                }
+            }
         }
         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 0))
         .listRowSeparator(.hidden)
