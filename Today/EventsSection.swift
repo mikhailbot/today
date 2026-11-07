@@ -69,7 +69,7 @@ struct EventsSection: View {
         } else {
             if past.count > pastShown { earlierRow(count: past.count) }
             ForEach(past, id: \.calendarItemIdentifier) { event in
-                row(event, time: time(event.startDate), past: true, live: false)
+                row(event, time: startText(event), past: true, live: false)
             }
         }
         // Between events, or after the last one; an event in progress shows its own progress instead.
@@ -77,7 +77,7 @@ struct EventsSection: View {
             nowLine
         }
         ForEach(rest, id: \.calendarItemIdentifier) { event in
-            row(event, time: time(event.startDate), past: false, live: isToday && event.startDate <= now)
+            row(event, time: startText(event), past: false, live: isToday && event.startDate <= now)
         }
     }
 
@@ -95,10 +95,20 @@ struct EventsSection: View {
             .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
     }
 
-    private func timeLabel(_ text: String, past: Bool) -> some View {
+    /// Started on an earlier day and runs into this one, like a late call that crosses midnight.
+    private func isCarriedOver(_ event: EKEvent) -> Bool {
+        !event.isAllDay && event.startDate < DayKey.date(for: day)
+    }
+
+    @ViewBuilder private func timeLabel(_ text: String, past: Bool) -> some View {
         Text(text)
             .font(.time.weight(.medium))
             .foregroundStyle(past ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
+    }
+
+    /// The start time, or "until 00:15" for an event carried over from the day before.
+    private func startText(_ event: EKEvent) -> String {
+        isCarriedOver(event) ? "until \(time(event.endDate))" : time(event.startDate)
     }
 
     private func row(_ event: EKEvent, time: String, past: Bool, live: Bool) -> some View {
@@ -112,7 +122,7 @@ struct EventsSection: View {
                         HStack {
                             timeLabel(time, past: past)
                             Spacer()
-                            if !past && !event.isAllDay { durationLabel(event) }
+                            if !past && !event.isAllDay && !isCarriedOver(event) { durationLabel(event) }
                         }
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
                             bar(event, past: past)
@@ -123,10 +133,11 @@ struct EventsSection: View {
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         timeLabel(time, past: past)
                             .frame(width: timeColumn, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
                         bar(event, past: past)
                         details(event, past: past, live: live)
                         Spacer(minLength: 0)
-                        if !past && !event.isAllDay { durationLabel(event) }
+                        if !past && !event.isAllDay && !isCarriedOver(event) { durationLabel(event) }
                     }
                 }
             }
@@ -148,6 +159,11 @@ struct EventsSection: View {
                 .strikethrough(past, color: .secondary)
                 // Wrap at accessibility sizes rather than cut words off.
                 .lineLimit(typeSize.isAccessibilitySize ? nil : past ? 1 : 2)
+            if isCarriedOver(event) {
+                Text("From \(event.startDate.formatted(.dateTime.weekday(.wide)))")
+                    .font(.detail)
+                    .foregroundStyle(.secondary)
+            }
             if !past, let location = event.location, !location.isEmpty {
                 HStack(spacing: 4) {
                     Image(systemName: "location")
