@@ -186,6 +186,9 @@ private struct DayTop: View {
         VStack(spacing: 8) {
             DayHeader(day: day, today: today, onPickDate: onPickDate, onSettings: onSettings)
             WeekStrip(day: $day, today: today, busyDays: Set(openThisWeek.map(\.day)))
+                // Seven days have to fit across the screen; past this size they'd push the whole day
+                // view wider than the screen. Long-pressing a day shows it enlarged instead.
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         }
         .padding(.horizontal, 20)
         .padding(.top, 14)
@@ -458,6 +461,9 @@ private struct WeekStrip: View {
         .accessibilityLabel(date.formatted(date: .complete, time: .omitted))
         .accessibilityValue(busyDays.contains(key) ? "Has open tasks" : "")
         .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityShowsLargeContentViewer {
+            Text(date.formatted(.dateTime.weekday(.abbreviated).day()))
+        }
     }
 }
 
