@@ -9,7 +9,6 @@ struct TasksSection: View {
     let onPickMove: (TaskItem) -> Void
 
     @Environment(\.modelContext) private var context
-    @AppStorage(Highlight.storageKey) private var highlight = Highlight.standard
     @State private var newTitle = ""
     @FocusState private var addFocused: Bool
 
@@ -21,16 +20,14 @@ struct TasksSection: View {
             ForEach(tasks) { task in
                 TaskRow(task: task)
                     .listRowInsets(rowInsets)
-                    .swipeActions(edge: .trailing) {
+                    .contextMenu {
                         if !task.isDone {
-                            Button("Tomorrow") { onMove(task, DayKey.adding(1, to: today)) }
-                                .tint(highlight.color)
-                            Button("Move…") { onPickMove(task) }
-                                .tint(.gray)
+                            Button("Tomorrow", systemImage: "arrow.right") {
+                                onMove(task, DayKey.adding(1, to: today))
+                            }
+                            Button("Move…", systemImage: "calendar") { onPickMove(task) }
                         }
-                    }
-                    .swipeActions(edge: .leading) {
-                        Button("Delete", role: .destructive) {
+                        Button("Delete", systemImage: "trash", role: .destructive) {
                             withAnimation { context.delete(task) }
                         }
                     }

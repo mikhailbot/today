@@ -19,7 +19,7 @@ What it doesn't do (YAGNI): due times, reminders or notifications, recurrence, p
 | Screen | Purpose |
 | --- | --- |
 | Day view | Date header with a week strip, then calendar events, then tasks with an inline "Add a task" field. Tap an event for Apple's event detail sheet; tap a task's title to edit it. |
-| Move to… | Swipe a task left for **Tomorrow** (one tap) or **Move…**, which opens a sheet with Tomorrow, Next week and a month picker. Swipe right to delete. |
+| Move to… | Long-press a task for **Tomorrow** (one tap) or **Move…**, which opens a sheet with Tomorrow, Next week and a month picker, and **Delete**. Done tasks only offer Delete. |
 | Leftovers prompt | When yesterday still has open tasks, a banner on today offers **Bring to today** (moves them all) or **Not now** (hides the banner until tomorrow). Nothing moves without asking. |
 | Settings | Turn individual calendars on or off. Shows iCloud sync status. |
 | First run | Asks for calendar access. "Just tasks for now" skips it. |
@@ -30,7 +30,7 @@ What it doesn't do (YAGNI): due times, reminders or notifications, recurrence, p
 - **Finished tasks stay on their day**, crossed out, and drop to the bottom of the list. Unticking one puts it back with the open tasks.
 - **Unfinished tasks from yesterday get a prompt to move forward** (the leftovers banner). Older unfinished tasks stay on their day; the week strip's dots still show them. Nothing moves automatically.
 - **Tasks can be added to any day** you're viewing, past or future.
-- **Tasks can be edited and deleted**: tap the title to edit it in place, swipe right to delete.
+- **Tasks can be edited and deleted**: tap the title to edit it in place, long-press for Delete. Task rows have no swipe actions, so a horizontal swipe anywhere on the day always changes the day.
 - **Finished tasks are kept forever**, so browsing back shows what got done. No cleanup logic.
 - **Tapping an event** opens Apple's own event detail sheet, read-only.
 - **Declined invitations are hidden.** All-day events show as a slim row at the top of the events card.
