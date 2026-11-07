@@ -39,8 +39,10 @@ struct MoveSheet: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+            .themedRows()
             .onChange(of: picked) { _, date in choose(DayKey.key(for: date)) }
         }
+        .themedSheet()
         .presentationDetents([.medium, .large])
     }
 
@@ -51,7 +53,7 @@ struct MoveSheet: View {
                     .foregroundStyle(.primary)
                 Spacer()
                 Text(DayKey.date(for: day).formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.secondaryInk)
             }
         }
     }

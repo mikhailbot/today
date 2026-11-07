@@ -33,8 +33,8 @@ struct SettingsView: View {
                         Label("Appearance", systemImage: "circle.lefthalf.filled")
                     }
                 }
-                Section("Highlight colour") {
-                    HighlightPicker()
+                Section("Theme") {
+                    ThemePicker()
                 }
                 Section {
                     NavigationLink {
@@ -44,6 +44,7 @@ struct SettingsView: View {
                     }
                 }
             }
+            .themedRows()
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -52,6 +53,7 @@ struct SettingsView: View {
                 }
             }
         }
+        .themedSheet()
     }
 
     private var calendarsSummary: String {
@@ -62,34 +64,84 @@ struct SettingsView: View {
     }
 }
 
-private struct HighlightPicker: View {
-    @AppStorage(Highlight.storageKey) private var highlight = Highlight.standard
-    @ScaledMetric private var size: CGFloat = 30
+/// Each theme as a small preview of its day, on its own paper.
+private struct ThemePicker: View {
+    @AppStorage(Theme.storageKey) private var selected = Theme.standard
 
     var body: some View {
-        HStack {
-            ForEach(Highlight.allCases) { option in
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 12)], spacing: 14) {
+            ForEach(Theme.allCases) { theme in
                 Button {
-                    highlight = option
+                    withAnimation(.snappy) { selected = theme }
                 } label: {
-                    Circle()
-                        .fill(option.color)
-                        .frame(width: size, height: size)
-                        .overlay {
-                            if option == highlight {
+                    VStack(spacing: 6) {
+                        ThemePreview(isSelected: theme == selected)
+                            .environment(\.theme, theme)
+                            .tint(theme.color(\.accent))
+                        HStack(spacing: 4) {
+                            Text(theme.name)
+                            if theme == selected {
                                 Image(systemName: "checkmark")
-                                    .font(.caption.bold())
-                                    .foregroundStyle(.white)
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.tint)
                             }
                         }
-                        .frame(maxWidth: .infinity)
+                        .font(.detail.weight(theme == selected ? .semibold : .regular))
+                    }
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(option.name)
-                .accessibilityAddTraits(option == highlight ? .isSelected : [])
+                .accessibilityLabel(theme.name)
+                .accessibilityAddTraits(theme == selected ? .isSelected : [])
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)
+    }
+}
+
+/// A theme's day in miniature: the mark as the day's progress, a finished event, the now line,
+/// the next event, and a ticked and an open task.
+private struct ThemePreview: View {
+    let isSelected: Bool
+
+    var body: some View {
+        let tile = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 0) {
+                Capsule().fill(.past).frame(width: 30, height: 3)
+                Circle().fill(.now).frame(width: 7, height: 7)
+                    .background(Circle().fill(.now.opacity(0.25)).padding(-2))
+                Capsule().fill(.future).frame(height: 3)
+            }
+            .padding(.bottom, 2)
+            row(Capsule().fill(.past).frame(width: 2.5, height: 9), line: .tertiaryInk, width: 0.55)
+            HStack(spacing: 0) {
+                Circle().fill(.now).frame(width: 5, height: 5)
+                Capsule().fill(.now).frame(height: 1.5)
+            }
+            row(Capsule().fill(.orange).frame(width: 2.5, height: 9), line: .ink, width: 0.8)
+            row(Circle().fill(.tint).frame(width: 9, height: 9), line: .secondaryInk, width: 0.5)
+            row(Circle().strokeBorder(.tertiaryInk, lineWidth: 1).frame(width: 9, height: 9), line: .ink, width: 0.7)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.paper, in: tile)
+        .overlay {
+            tile.strokeBorder(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(Color(.separator)),
+                              lineWidth: isSelected ? 2 : 0.5)
+        }
+        .accessibilityHidden(true)
+    }
+
+    /// A marker, then a line of "text" taking `width` of what's left.
+    private func row(_ marker: some View, line: ThemeColor, width: CGFloat) -> some View {
+        HStack(spacing: 5) {
+            marker.frame(width: 9)
+            GeometryReader { geo in
+                Capsule().fill(line).frame(width: geo.size.width * width, height: 4)
+                    .frame(maxHeight: .infinity)
+            }
+            .frame(height: 9)
+        }
     }
 }
 
@@ -114,6 +166,7 @@ private struct CalendarsSettings: View {
                 }
             }
         }
+        .themedRows()
         .navigationTitle("Calendars")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -173,6 +226,7 @@ private struct SyncSettings: View {
                 Text("Events come from the accounts in the Calendar app and stay in sync with them.")
             }
         }
+        .themedRows()
         .navigationTitle("Sync")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -195,7 +249,7 @@ private struct AboutView: View {
                         .font(.title2.bold())
                     Text("Your events and tasks for the day, in one place.")
                         .font(.detail)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.secondaryInk)
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
@@ -207,9 +261,10 @@ private struct AboutView: View {
             Section("Privacy") {
                 Text("Calendar events are only read, never changed. Nothing leaves your device except through your own iCloud account.")
                     .font(.detail)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.secondaryInk)
             }
         }
+        .themedRows()
         .navigationTitle("About")
         .navigationBarTitleDisplayMode(.inline)
     }

@@ -27,7 +27,10 @@ struct DayView: View {
                          onPickMove: { movingTask = $0 },
                          onPickEvent: { shownEvent = ShownEvent(event: $0) })
             }
-            .background(Color(.systemBackground))
+            // The theme's ink for the page's text. Not set at the root: a foreground style overrides the tint,
+            // which would take it off buttons and icons in sheets.
+            .foregroundStyle(.ink, .secondaryInk, .tertiaryInk)
+            .background(.paper)
             .toolbar(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .bottom) {
                 VStack {
@@ -93,10 +96,10 @@ struct DayView: View {
                 .bold()
             }
             .font(.detail)
-            .foregroundStyle(Color(.systemBackground))
-            .tint(Color(.systemBackground))
+            .foregroundStyle(.paper)
+            .tint(ThemeColor.paper)
             .padding()
-            .background(Color(.label).opacity(0.9), in: RoundedRectangle(cornerRadius: 14))
+            .background(.ink.opacity(0.9), in: RoundedRectangle(cornerRadius: 14))
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -152,6 +155,7 @@ struct DayView: View {
             }
             Spacer(minLength: 0)
         }
+        .themedSheet()
         .presentationDetents([.medium, .large])
     }
 }
@@ -363,7 +367,7 @@ private struct DayHeader: View {
                 }
                 Text(eyebrow)
                     .font(.spokenDay)
-                    .foregroundStyle(day == today ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    .foregroundStyle(day == today ? AnyShapeStyle(.now) : AnyShapeStyle(.secondary))
             }
             HStack {
                 Button(action: onPickDate) {
@@ -492,9 +496,6 @@ private struct WeekStrip: View {
         }
     }
 
-    @AppStorage(Highlight.storageKey) private var highlight = Highlight.standard
-    @Environment(\.colorScheme) private var colorScheme
-
     private func cell(_ key: String, selected: Bool) -> some View {
         let date = DayKey.date(for: key)
         let calendar = Calendar.current
@@ -508,7 +509,7 @@ private struct WeekStrip: View {
                     .foregroundStyle(.secondary)
                 Text(date.formatted(.dateTime.day()))
                     .font(.dayNumber.weight(selected || key == today ? .semibold : .regular))
-                    .foregroundStyle(selected ? AnyShapeStyle(highlight.textOnFill(colorScheme))
+                    .foregroundStyle(selected ? AnyShapeStyle(.onAccent)
                                      : key == today ? AnyShapeStyle(.tint)
                                      : key < today ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                     .frame(width: circle, height: circle)
@@ -580,8 +581,10 @@ private struct LeftoversBanner: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .buttonStyle(.bordered)
+        .foregroundStyle(.tint)
         Button("Not now", action: onDismiss)
             .buttonStyle(.borderless)
+            .foregroundStyle(.tint)
     }
 }
 

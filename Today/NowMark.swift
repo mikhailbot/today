@@ -1,26 +1,8 @@
 import SwiftUI
 
-/// The app's mark, from the icon: the past as grey bars, the present as a tinted dot on a line,
-/// the future as light tinted bars. Every "now" in the app is drawn from these pieces.
-extension ShapeStyle where Self == Color {
-    /// The icon's past bars.
-    static var past: Color { Color(light: 0xE5E5EA, dark: 0x3A3A3C) }
-}
-
-extension ShapeStyle where Self == TintShapeStyle {
-    /// The icon's future bars: the tint, lightened.
-    static var future: some ShapeStyle { TintShapeStyle.tint.opacity(0.25) }
-}
-
-extension Color {
-    init(light: UInt32, dark: UInt32) {
-        func color(_ hex: UInt32) -> UIColor {
-            UIColor(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
-                    blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
-        }
-        self.init(uiColor: UIColor { $0.userInterfaceStyle == .dark ? color(dark) : color(light) })
-    }
-}
+// The app's mark, from the icon: the past as grey bars, the present as a dot on a line, the future
+// as light bars, each in its theme colour (`.past`, `.now`, `.future`). Every "now" in the app is
+// drawn from these pieces.
 
 /// The dot that marks now, with its soft halo. A pulsing dot sends a slow ripple out from the
 /// halo, like a clock ticking; it holds still when Reduce Motion is on.
@@ -31,14 +13,14 @@ struct NowDot: View {
 
     var body: some View {
         Circle()
-            .fill(.tint)
+            .fill(.now)
             .frame(width: size, height: size)
-            .background(Circle().fill(.future).padding(-size * 0.3))
+            .background(Circle().fill(.now.opacity(0.25)).padding(-size * 0.3))
             .background {
                 if pulses && !reduceMotion {
                     PhaseAnimator([false, true]) { spread in
                         Circle()
-                            .fill(.tint.opacity(0.4))
+                            .fill(.now.opacity(0.4))
                             .scaleEffect(spread ? 2.4 : 1)
                             .opacity(spread ? 0 : 1)
                     } animation: { spread in
@@ -58,7 +40,7 @@ struct NowLine: View {
         HStack(spacing: 0) {
             NowDot(size: dot, pulses: true)
             Capsule()
-                .fill(.tint)
+                .fill(.now)
                 .frame(height: thickness)
                 .padding(.leading, -2)
         }
@@ -66,7 +48,7 @@ struct NowLine: View {
     }
 }
 
-/// The icon's mark drawn in the app, so it follows the highlight colour.
+/// The icon's mark drawn in the app, so it follows the theme.
 /// Geometry matches `LaunchMark.svg` (viewBox 12 14 76 72). `reveal` draws it in from 0 to 1:
 /// the past bars first, then the dot and its line, then the future.
 struct AppMarkGlyph: View, Animatable {
@@ -95,13 +77,13 @@ struct AppMarkGlyph: View, Animatable {
                 path.addLine(to: p(x1 + (x2 - x1) * t, y))
                 context.stroke(path, with: shading, style: StrokeStyle(lineWidth: width * s, lineCap: .round))
             }
-            bar(22, from: 24, to: 64, width: 7, grown: past, .color(.past))
-            bar(34, from: 24, to: 50, width: 7, grown: past, .color(.past))
+            bar(22, from: 24, to: 64, width: 7, grown: past, .style(.past))
+            bar(34, from: 24, to: 50, width: 7, grown: past, .style(.past))
             bar(66, from: 24, to: 78, width: 7, grown: future, .style(.future))
             bar(78, from: 24, to: 58, width: 7, grown: future, .style(.future))
-            bar(50, from: 22, to: 84, width: 5, grown: now, .style(.tint))
+            bar(50, from: 22, to: 84, width: 5, grown: now, .style(.now))
             let c = p(22, 50), r = 8 * s * min(now * 2, 1)
-            context.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)), with: .style(.tint))
+            context.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)), with: .style(.now))
         }
         .aspectRatio(76 / 72, contentMode: .fit)
         .accessibilityHidden(true)
@@ -121,7 +103,7 @@ struct AppMark: View {
         AppMarkGlyph(reveal: animated && !reduceMotion ? reveal : 1)
             .padding(size * 0.175)
             .frame(width: size, height: size)
-            .background(Color(.systemBackground), in: tile)
+            .background(.card, in: tile)
             .overlay(tile.stroke(Color(.separator), lineWidth: 0.5))
             .accessibilityHidden(true)
             .onAppear {

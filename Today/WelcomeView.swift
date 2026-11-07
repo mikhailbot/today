@@ -26,6 +26,7 @@ struct WelcomeView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 28)
             .padding(.top, 72)
+            .foregroundStyle(.ink, .secondaryInk, .tertiaryInk)
         }
         .scrollBounceBehavior(.basedOnSize)
         // The choice stays in reach at the bottom, however large the text.
@@ -36,8 +37,8 @@ struct WelcomeView: View {
                 } label: {
                     Text("Allow calendar access")
                         .frame(maxWidth: .infinity)
-                        // White on the light dark-mode tint is too faint; the page colour reads on both.
-                        .foregroundStyle(Color(.systemBackground))
+                        // The theme's paper or ink, whichever reads on its tint; white is too faint on the light dark-mode tints.
+                        .foregroundStyle(.onAccent)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
@@ -46,8 +47,8 @@ struct WelcomeView: View {
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 12)
-            .background(Color(.systemBackground))
+            .background(.paper)
         }
-        .background(Color(.systemBackground))
+        .background(.paper)
     }
 }

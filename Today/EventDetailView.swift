@@ -20,6 +20,8 @@ struct EventDetailView: UIViewControllerRepresentable {
 
     func updateUIViewController(_ controller: UINavigationController, context: Context) {
         context.coordinator.dismiss = dismiss
+        // UIKit doesn't see SwiftUI's tint.
+        controller.view.tintColor = context.environment.theme.uiColor(\.accent)
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(dismiss: dismiss) }

@@ -74,20 +74,35 @@ struct TaskOrderTests {
     }
 }
 
-struct HighlightTests {
-    /// The selected day's number sits on a filled highlight and must read at 4.5:1 or better.
-    @Test(arguments: Highlight.allCases, [ColorScheme.light, .dark])
-    func dayNumberReadsOnTheFill(highlight: Highlight, scheme: ColorScheme) {
-        let trait = UITraitCollection(userInterfaceStyle: scheme == .dark ? .dark : .light)
-        let fill = UIColor(highlight.color).resolvedColor(with: trait)
-        let text = UIColor(highlight.textOnFill(scheme)).resolvedColor(with: trait)
-        #expect(fill.contrastRatio(with: text) >= 4.5)
+struct ThemeTests {
+    /// Text must read at 4.5:1 or better wherever the theme puts it: ink on the page and on cards,
+    /// accent words and buttons, the time on the now line, and the selected day's number on its fill.
+    @Test(arguments: Theme.allCases, [ColorScheme.light, .dark])
+    func textReads(theme: Theme, scheme: ColorScheme) {
+        let p = theme.palette(scheme)
+        let pairs: [(String, UInt32, UInt32)] = [
+            ("ink on paper", p.ink, p.paper), ("ink on card", p.ink, p.card),
+            ("secondary ink on paper", p.secondaryInk, p.paper), ("secondary ink on card", p.secondaryInk, p.card),
+            ("accent on paper", p.accent, p.paper), ("accent on card", p.accent, p.card),
+            ("now on paper", p.now, p.paper), ("day number on accent", p.onAccent, p.accent),
+        ]
+        for (name, text, background) in pairs {
+            let ratio = UIColor(hex: text).contrastRatio(with: UIColor(hex: background))
+            #expect(ratio >= 4.5, "\(theme.name) \(scheme) \(name): \(ratio)")
+        }
     }
 
-    @Test func darkIndigoTakesDarkText() {
-        // Dark-mode indigo is #93A5FF: white on it is 2.3:1, black is 9.1:1.
-        #expect(Highlight.standard.textOnFill(.dark) == .black)
-        #expect(Highlight.standard.textOnFill(.light) == .white)
+    /// The setting is stored under the old highlight key; every colour it offered still opens a theme.
+    @Test func readsStoredHighlightColours() {
+        #expect(Theme(rawValue: "standard") == .standard)
+        #expect(Theme(rawValue: "blue") == .standard)
+        #expect(Theme(rawValue: "teal") == .tide)
+        #expect(Theme(rawValue: "green") == .moss)
+        #expect(Theme(rawValue: "orange") == .clay)
+        #expect(Theme(rawValue: "red") == .clay)
+        #expect(Theme(rawValue: "pink") == .plum)
+        #expect(Theme(rawValue: "purple") == .plum)
+        #expect(Theme(rawValue: "nonsense") == nil)
+        for theme in Theme.allCases { #expect(Theme(rawValue: theme.rawValue) == theme) }
     }
 }
-

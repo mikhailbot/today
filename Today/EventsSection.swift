@@ -178,7 +178,7 @@ struct EventsSection: View {
                     .padding(.top, 6)
                 Text("\(Int((event.endDate.timeIntervalSince(now) / 60).rounded(.up))) min left")
                     .font(.detail)
-                    .foregroundStyle(.tint)
+                    .foregroundStyle(.now)
                     .contentTransition(.numericText(countsDown: true))
             }
         }
@@ -231,7 +231,7 @@ struct EventsSection: View {
         HStack(spacing: 10) {
             Text(time(now))
                 .font(.time.weight(.bold))
-                .foregroundStyle(.tint)
+                .foregroundStyle(.now)
                 .frame(minWidth: typeSize.isAccessibilitySize ? nil : timeColumn, alignment: .leading)
             NowLine()
         }
@@ -274,6 +274,7 @@ struct EventsSection: View {
                 }
             }
             .buttonStyle(.bordered)
+            .foregroundStyle(.tint)
         }
         .listRowInsets(rowInsets)
         .listRowSeparator(.hidden)
@@ -292,7 +293,7 @@ private struct ProgressLine: View {
                     .fill(.future)
                     .frame(height: 4)
                 Capsule()
-                    .fill(.tint)
+                    .fill(.now)
                     .frame(width: x, height: 4)
                 NowDot(size: 12)
                     .offset(x: x - 6)

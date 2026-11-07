@@ -24,7 +24,7 @@ struct TasksSection: View {
                     // The lifted preview gets its own padding and corners instead of the list cell's,
                     // which were rounded or square depending on the row's position.
                     .padding(.horizontal, 8)
-                    .background(Color(.systemBackground))
+                    .background(.paper)
                     .contentShape(.contextMenuPreview, liftShape)
                     .padding(.horizontal, -8)
                     .listRowInsets(rowInsets)
@@ -154,8 +154,7 @@ private struct CheckMark: View {
                 .opacity(isDone ? 1 : 0)
             Image(systemName: "checkmark")
                 .font(.system(size: size * 0.5, weight: .bold))
-                // The page colour reads on the tint in light and dark alike.
-                .foregroundStyle(Color(.systemBackground))
+                .foregroundStyle(.onAccent)
                 .opacity(isDone ? 1 : 0)
                 .symbolEffect(.bounce, value: isDone)
         }
