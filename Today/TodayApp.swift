@@ -32,6 +32,7 @@ struct RootView: View {
     @Environment(CalendarStore.self) private var calendar
     @AppStorage("skippedCalendarAccess") private var skippedCalendarAccess = false
     @AppStorage(Highlight.storageKey) private var highlight = Highlight.standard
+    @AppStorage(Appearance.storageKey) private var appearance = Appearance.system
 
     var body: some View {
         Group {
@@ -42,5 +43,6 @@ struct RootView: View {
             }
         }
         .tint(highlight.color)
+        .onChange(of: appearance, initial: true) { appearance.apply() }
     }
 }

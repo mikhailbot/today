@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Environment(CalendarStore.self) private var calendar
     @Environment(\.dismiss) private var dismiss
     @AppStorage(HiddenCalendars.storageKey) private var hiddenRaw = ""
+    @AppStorage(Appearance.storageKey) private var appearance = Appearance.system
 
     var body: some View {
         NavigationStack {
@@ -23,6 +24,13 @@ struct SettingsView: View {
                         LabeledContent { Text(SyncSettings.isOn ? "On" : "Off") } label: {
                             Label("Sync", systemImage: "icloud")
                         }
+                    }
+                }
+                Section {
+                    Picker(selection: $appearance) {
+                        ForEach(Appearance.allCases) { Text($0.name).tag($0) }
+                    } label: {
+                        Label("Appearance", systemImage: "circle.lefthalf.filled")
                     }
                 }
                 Section("Highlight colour") {
