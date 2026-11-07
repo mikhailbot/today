@@ -95,6 +95,32 @@ enum Theme: String, CaseIterable, Identifiable {
         }
     }
 
+    /// The slab of colour behind the date and week strip: the light accent, deepened a little in dark
+    /// mode so it stays a colour rather than a pastel. Graphite's accent is near-black in light and
+    /// near-white in dark, so its slab is charcoal in both.
+    var slab: Color {
+        Color(uiColor: UIColor { traits in
+            let dark = traits.userInterfaceStyle == .dark
+            if self == .graphite { return UIColor(hex: dark ? 0x333335 : 0x2F2F31) }
+            let accent = UIColor(hex: self.palette(.light).accent)
+            return dark ? accent.mixed(with: .black, by: 0.28) : accent
+        })
+    }
+
+    /// Text on the slab: white or the ink, whichever reads better.
+    var onSlab: Color {
+        Color(uiColor: UIColor { traits in
+            let slab = UIColor(self.slab).resolvedColor(with: traits)
+            let ink = UIColor(hex: self.palette(.light).ink)
+            return slab.contrastRatio(with: .white) >= slab.contrastRatio(with: ink) ? .white : ink
+        })
+    }
+
+    /// The now dot on the slab: the text colour, except Graphite keeps its one red mark for now.
+    var nowOnSlab: Color {
+        self == .graphite ? Color(uiColor: UIColor(hex: palette(.dark).now)) : onSlab
+    }
+
     /// One palette colour, following light and dark.
     func color(_ role: KeyPath<Palette, UInt32>) -> Color { Color(uiColor: uiColor(role)) }
 
@@ -150,6 +176,16 @@ extension UIColor {
     convenience init(hex: UInt32) {
         self.init(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
                   blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+    }
+
+    /// This colour moved `amount` of the way to another, in sRGB.
+    func mixed(with other: UIColor, by amount: CGFloat) -> UIColor {
+        var r1: CGFloat = 0, g1: CGFloat = 0, b1: CGFloat = 0, a1: CGFloat = 0
+        var r2: CGFloat = 0, g2: CGFloat = 0, b2: CGFloat = 0, a2: CGFloat = 0
+        getRed(&r1, green: &g1, blue: &b1, alpha: &a1)
+        other.getRed(&r2, green: &g2, blue: &b2, alpha: &a2)
+        return UIColor(red: r1 + (r2 - r1) * amount, green: g1 + (g2 - g1) * amount,
+                       blue: b1 + (b2 - b1) * amount, alpha: a1 + (a2 - a1) * amount)
     }
 
     /// WCAG relative luminance of the colour in sRGB.

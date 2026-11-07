@@ -33,6 +33,9 @@ struct RootView: View {
     @AppStorage("skippedCalendarAccess") private var skippedCalendarAccess = false
     @AppStorage(Theme.storageKey) private var theme = Theme.standard
     @AppStorage(Appearance.storageKey) private var appearance = Appearance.system
+    #if DEBUG
+    @Environment(\.modelContext) private var context
+    #endif
 
     var body: some View {
         Group {
@@ -45,5 +48,10 @@ struct RootView: View {
         .tint(theme.color(\.accent))
         .environment(\.theme, theme)
         .onChange(of: appearance, initial: true) { appearance.apply() }
+        #if DEBUG
+        .task {
+            if DebugSeed.isRequested { await DebugSeed.run(context: context, calendar: calendar) }
+        }
+        #endif
     }
 }

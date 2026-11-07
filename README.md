@@ -19,7 +19,7 @@ What it doesn't do (YAGNI): due times, reminders or notifications, recurrence, p
 
 | Screen | Purpose |
 | --- | --- |
-| Day view | Date header with a week strip, then calendar events, then tasks with an inline "Add a task" field. Tap an event for Apple's event detail sheet; the floating calendar button in the corner adds an event on that day. Tap a task's title to edit it. |
+| Day view | The date and week strip on a slab of the theme colour, then calendar events, then tasks with an inline "Add a task" field. The date is a large rounded numeral beside the spoken day and the month; tap it to pick a day. Scrolling the day folds the header to one line ("Sat, Nov 7 morning"). Tap an event for Apple's event detail sheet; the floating calendar button in the corner adds an event on that day. Tap a task's title to edit it. |
 | Move to… | Long-press a task for **Tomorrow** (one tap) or **Move…**, which opens a sheet with Tomorrow, Next week and a month picker, and **Delete**. Done tasks only offer Delete. |
 | Leftovers prompt | When yesterday still has open tasks, a banner on today offers **Bring to today** (moves them all) or **Not now** (hides the banner until tomorrow). Nothing moves without asking. |
 | Settings | Turn individual calendars on or off. Shows iCloud sync status. |
@@ -28,8 +28,11 @@ What it doesn't do (YAGNI): due times, reminders or notifications, recurrence, p
 ## Decisions
 
 - **Layout A (stacked)** for the day view: an events card above a tasks card, in the iOS inset-grouped style. The tasks-first (B) and timeline (C) layouts on the canvas were considered and dropped.
+- **The header is a slab of the theme colour** that runs up under the status bar, which reads light on it in both appearances. Graphite, whose accent is near-black or near-white, gets a charcoal slab and keeps its red now dot. At accessibility text sizes the numeral gives way to the date as a line of text, so nothing is cut off.
+- **The week strip lives on the slab.** The selected day is a tall rounded pill around its letter and number that glides from day to day; today keeps an outline while another day is selected. Under each day, two of the mark's bars show how full it is: hours of events on top (six hours fills it), tasks below (five fills it), bright while any task is open and dim once all are done.
+- **Ticking a task off is a small moment**: the check springs with a ripple, the row washes in the accent, a line draws across the title, and the row drops to the done tasks a beat later, while the count ticks down. Ticking today's last open task shows "All done" with the mark, its future bars sweeping to the past colour. With Reduce Motion on, the tick, line and reorder happen at once and nothing springs.
 - **Finished tasks stay on their day**, crossed out, and drop to the bottom of the list. Unticking one puts it back with the open tasks.
-- **Unfinished tasks from yesterday get a prompt to move forward** (the leftovers banner). Older unfinished tasks stay on their day; the week strip's dots still show them. Nothing moves automatically.
+- **Unfinished tasks from yesterday get a prompt to move forward** (the leftovers banner). Older unfinished tasks stay on their day; the week strip's bright task bars still show them. Nothing moves automatically.
 - **Tasks can be added to any day** you're viewing, past or future.
 - **Tasks can be edited and deleted**: tap the title to edit it in place, long-press for Delete. Task rows have no swipe actions, so a horizontal swipe anywhere on the day always changes the day.
 - **Finished tasks are kept forever**, so browsing back shows what got done. No cleanup logic.
