@@ -6,6 +6,9 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage(HiddenCalendars.storageKey) private var hiddenRaw = ""
     @AppStorage(Appearance.storageKey) private var appearance = Appearance.system
+    /// Kept here and passed down: when the picker in its List row kept its own @AppStorage, the row
+    /// stopped redrawing after the first change and the checkmark stayed on the first theme picked.
+    @AppStorage(Theme.storageKey) private var theme = Theme.standard
 
     var body: some View {
         NavigationStack {
@@ -34,7 +37,7 @@ struct SettingsView: View {
                     }
                 }
                 Section("Theme") {
-                    ThemePicker()
+                    ThemePicker(selected: $theme)
                 }
                 Section {
                     NavigationLink {
@@ -66,7 +69,7 @@ struct SettingsView: View {
 
 /// Each theme as a small preview of its day, on its own paper.
 private struct ThemePicker: View {
-    @AppStorage(Theme.storageKey) private var selected = Theme.standard
+    @Binding var selected: Theme
 
     var body: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 12)], spacing: 14) {
