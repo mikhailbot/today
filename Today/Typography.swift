@@ -5,6 +5,8 @@ import SwiftUI
 extension Font {
     /// The date at the top of the day.
     static let dayTitle = Font.largeTitle.bold()
+    /// The spoken day above the date: "Friday morning", "Tomorrow".
+    static let spokenDay = Font.subheadline.weight(.semibold)
     /// Small uppercase labels: the weekday above the date and section headings. Use `eyebrow()`.
     static let eyebrow = Font.footnote.weight(.semibold)
     /// Secondary row text: calendar and location, the leftovers list, the toast.

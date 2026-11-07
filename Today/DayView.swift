@@ -183,16 +183,21 @@ private struct DayTop: View {
     }
 
     var body: some View {
-        VStack(spacing: 8) {
-            DayHeader(day: day, today: today, onPickDate: onPickDate, onSettings: onSettings)
-            WeekStrip(day: $day, today: today, busyDays: Set(openThisWeek.map(\.day)))
-                // Seven days have to fit across the screen; past this size they'd push the whole day
-                // view wider than the screen. Long-pressing a day shows it enlarged instead.
-                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        TimelineView(.everyMinute) { context in
+            VStack(spacing: 8) {
+                DayHeader(day: day, today: today, now: context.date, onPickDate: onPickDate, onSettings: onSettings)
+                WeekStrip(day: $day, today: today, busyDays: Set(openThisWeek.map(\.day)))
+                    // Seven days have to fit across the screen; past this size they'd push the whole day
+                    // view wider than the screen. Long-pressing a day shows it enlarged instead.
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                DayProgress(fraction: day < today ? 1 : day > today ? 0 : DayProgress.fraction(at: context.date),
+                            showsNow: day == today)
+                    .padding(.top, 2)
+            }
         }
         .padding(.horizontal, 20)
         .padding(.top, 14)
-        .padding(.bottom, 4)
+        .padding(.bottom, 8)
     }
 }
 
@@ -303,10 +308,41 @@ private struct DayPage: View {
 }
 
 /// The date, which opens the day picker, and settings. Jumping back to today is the floating pill.
+/// The icon's mark as the day's progress: hours gone in grey, the dot at now, the rest in light tint.
+/// Days before today are all past; days after are all future, with no dot.
+private struct DayProgress: View {
+    let fraction: Double
+    let showsNow: Bool
+
+    static func fraction(at now: Date) -> Double {
+        let start = Calendar.current.startOfDay(for: now)
+        let end = Calendar.current.date(byAdding: .day, value: 1, to: start)!
+        return min(max(now.timeIntervalSince(start) / end.timeIntervalSince(start), 0), 1)
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let x = geo.size.width * fraction
+            ZStack(alignment: .leading) {
+                Capsule().fill(.future).frame(height: 3)
+                Capsule().fill(.past).frame(width: x, height: 3)
+                if showsNow {
+                    NowDot(size: 11).offset(x: x - 5.5)
+                }
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .frame(height: 18)
+        .accessibilityHidden(true)
+    }
+}
+
 private struct DayHeader: View {
     let day: String
     let today: String
+    let now: Date
     let onPickDate: () -> Void
+    @ScaledMetric(relativeTo: .subheadline) private var eyebrowDot: CGFloat = 7
     let onSettings: () -> Void
 
     @ScaledMetric(relativeTo: .largeTitle) private var titleCapHeight = UIFont.preferredFont(
@@ -314,15 +350,16 @@ private struct DayHeader: View {
 
     var body: some View {
         let date = DayKey.date(for: day)
-        let weekday = date.formatted(.dateTime.weekday(.wide))
-        let sameYear = Calendar.current.isDate(date, equalTo: .now, toGranularity: .year)
-        // The year rides on the weekday line so the date stays short enough for one line.
-        let eyebrow = day == today ? "Today · \(weekday)"
-            : sameYear ? weekday : "\(weekday) · \(date.formatted(.dateTime.year()))"
+        let eyebrow = spokenDay(date)
         VStack(alignment: .leading, spacing: 0) {
-            Text(eyebrow)
-                .eyebrow()
-                .foregroundStyle(.tint)
+            HStack(spacing: 7) {
+                if day == today {
+                    NowDot(size: eyebrowDot)
+                }
+                Text(eyebrow)
+                    .font(.spokenDay)
+                    .foregroundStyle(day == today ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+            }
             HStack {
                 Button(action: onPickDate) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -339,7 +376,7 @@ private struct DayHeader: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("\(eyebrow), \(date.formatted(.dateTime.month(.wide).day()))")
+                .accessibilityLabel("\(day == today ? "Today, " : "")\(eyebrow), \(date.formatted(.dateTime.month(.wide).day()))")
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityHint("Choose a day")
                 Spacer(minLength: 12)
@@ -353,6 +390,22 @@ private struct DayHeader: View {
                 .buttonBorderShape(.circle)
                 .accessibilityLabel("Settings")
             }
+        }
+    }
+}
+
+extension DayHeader {
+    /// The day as you'd say it: "Friday morning", "Tomorrow", "Wednesday", "Monday · 2027".
+    /// The year rides on this line so the date below stays short enough for one line.
+    func spokenDay(_ date: Date) -> String {
+        let weekday = date.formatted(.dateTime.weekday(.wide))
+        switch DayKey.days(from: today, to: day) {
+        case 0: return "\(weekday) \(DayPart(now).rawValue)"
+        case 1: return "Tomorrow"
+        case -1: return "Yesterday"
+        default:
+            let sameYear = Calendar.current.isDate(date, equalTo: now, toGranularity: .year)
+            return sameYear ? weekday : "\(weekday) · \(date.formatted(.dateTime.year()))"
         }
     }
 }
@@ -447,9 +500,11 @@ private struct WeekStrip: View {
                     .foregroundStyle(.secondary)
                 Text(date.formatted(.dateTime.day()))
                     .font(.dayNumber.weight(selected || key == today ? .semibold : .regular))
-                    .foregroundStyle(selected ? AnyShapeStyle(.white) : key == today ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+                    .foregroundStyle(selected || key == today ? AnyShapeStyle(.tint)
+                                     : key < today ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                     .frame(width: circle, height: circle)
-                    .background(Circle().fill(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear)))
+                    // A ring, not a filled disc: the only filled tint is the dot that marks now.
+                    .overlay(Circle().strokeBorder(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear), lineWidth: 2))
                 Circle()
                     .fill(busyDays.contains(key) ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear))
                     .frame(width: 5, height: 5)

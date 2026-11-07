@@ -42,6 +42,22 @@ struct DayKeyTests {
         let date = DayKey.date(for: "2026-10-29", calendar: japanese)
         #expect(DayKey.key(for: date, calendar: japanese) == "2026-10-29")
     }
+
+    @Test func namesPartsOfTheDayAtTheirBoundaries() {
+        let cal = calendar()
+        func part(_ h: Int, _ m: Int) -> DayPart {
+            DayPart(DayKey.date(for: "2026-11-06", calendar: cal).addingTimeInterval(TimeInterval(h * 3600 + m * 60)), calendar: cal)
+        }
+        #expect(part(4, 59) == .night)
+        #expect(part(5, 0) == .morning)
+        #expect(part(11, 59) == .morning)
+        #expect(part(12, 0) == .afternoon)
+        #expect(part(16, 59) == .afternoon)
+        #expect(part(17, 0) == .evening)
+        #expect(part(20, 59) == .evening)
+        #expect(part(21, 0) == .night)
+        #expect(part(0, 30) == .night)
+    }
 }
 
 struct TaskOrderTests {

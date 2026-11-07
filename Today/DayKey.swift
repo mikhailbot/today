@@ -52,3 +52,19 @@ enum DayKey {
         return g
     }
 }
+
+/// The part of the day as people say it: "Friday morning".
+enum DayPart: String {
+    case morning, afternoon, evening, night
+
+    /// Morning 5–12, afternoon 12–17, evening 17–21, night otherwise.
+    init(_ date: Date, calendar: Calendar = .current) {
+        switch calendar.component(.hour, from: date) {
+        case 5..<12: self = .morning
+        case 12..<17: self = .afternoon
+        case 17..<21: self = .evening
+        default: self = .night
+        }
+    }
+}
+
