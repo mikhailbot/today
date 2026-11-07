@@ -182,10 +182,12 @@ struct EventsSection: View {
                     // Starts under the calendar bar, so the dot sets off from the bar's centre.
                     .padding(.leading, -(barGap + barWidth / 2))
                     .padding(.top, 6)
-                Text("\(Int((event.endDate.timeIntervalSince(now) / 60).rounded(.up))) min left")
+                let left = Self.timeLeft(event.endDate.timeIntervalSince(now))
+                Text(left.text)
                     .font(.detail)
                     .foregroundStyle(.now)
                     .contentTransition(.numericText(countsDown: true))
+                    .accessibilityLabel(left.spoken)
             }
         }
     }
@@ -193,11 +195,28 @@ struct EventsSection: View {
     /// "45m", "2h", "1h 30m".
     private func durationLabel(_ event: EKEvent) -> some View {
         let minutes = Int(event.endDate.timeIntervalSince(event.startDate) / 60)
-        let text = minutes < 60 ? "\(minutes)m" : minutes % 60 == 0 ? "\(minutes / 60)h" : "\(minutes / 60)h \(minutes % 60)m"
-        return Text(text)
+        return Text(Self.shortDuration(minutes: minutes))
             .font(.time)
             .foregroundStyle(.tertiary)
-            .accessibilityLabel(Duration.seconds(minutes * 60).formatted(.units(allowed: [.hours, .minutes], width: .wide)))
+            .accessibilityLabel(Self.spokenDuration(minutes: minutes))
+    }
+
+    /// "45m", "2h", "1h 30m", as the duration labels and the time left from an hour up read.
+    static func shortDuration(minutes: Int) -> String {
+        minutes < 60 ? "\(minutes)m" : minutes % 60 == 0 ? "\(minutes / 60)h" : "\(minutes / 60)h \(minutes % 60)m"
+    }
+
+    /// "45 minutes", "2 hours, 16 minutes", for VoiceOver.
+    static func spokenDuration(minutes: Int) -> String {
+        Duration.seconds(minutes * 60).formatted(.units(allowed: [.hours, .minutes], width: .wide))
+    }
+
+    /// "45 min left" under an hour, then "1h left", "2h 16m left". A started minute counts as a
+    /// whole one, so the last seconds read "1 min left" and 59½ minutes read "1h left".
+    static func timeLeft(_ interval: TimeInterval) -> (text: String, spoken: String) {
+        let minutes = Int((interval / 60).rounded(.up))
+        let text = minutes < 60 ? "\(minutes) min" : shortDuration(minutes: minutes)
+        return ("\(text) left", "\(spokenDuration(minutes: minutes)) left")
     }
 
     /// Folds the past away behind a few grey bars, the icon's past.
