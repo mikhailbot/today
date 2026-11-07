@@ -492,6 +492,9 @@ private struct WeekStrip: View {
         }
     }
 
+    @AppStorage(Highlight.storageKey) private var highlight = Highlight.standard
+    @Environment(\.colorScheme) private var colorScheme
+
     private func cell(_ key: String, selected: Bool) -> some View {
         let date = DayKey.date(for: key)
         let calendar = Calendar.current
@@ -505,11 +508,18 @@ private struct WeekStrip: View {
                     .foregroundStyle(.secondary)
                 Text(date.formatted(.dateTime.day()))
                     .font(.dayNumber.weight(selected || key == today ? .semibold : .regular))
-                    .foregroundStyle(selected || key == today ? AnyShapeStyle(.tint)
+                    .foregroundStyle(selected ? AnyShapeStyle(highlight.textOnFill(colorScheme))
+                                     : key == today ? AnyShapeStyle(.tint)
                                      : key < today ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                     .frame(width: circle, height: circle)
-                    // A ring, not a filled disc: the only filled tint is the dot that marks now.
-                    .overlay(Circle().strokeBorder(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear), lineWidth: 2))
+                    // The selected day is filled; today keeps a ring while another day is selected.
+                    .background {
+                        if selected {
+                            Circle().fill(.tint)
+                        } else if key == today {
+                            Circle().strokeBorder(.tint, lineWidth: 1.5)
+                        }
+                    }
                 Circle()
                     .fill(busyDays.contains(key) ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear))
                     .frame(width: 5, height: 5)

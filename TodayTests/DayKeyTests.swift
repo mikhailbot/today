@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 @testable import Today
 
@@ -72,3 +73,21 @@ struct TaskOrderTests {
         #expect(TaskItem.ordered([d, c, b, a]).map(\.title) == ["b", "d", "a", "c"])
     }
 }
+
+struct HighlightTests {
+    /// The selected day's number sits on a filled highlight and must read at 4.5:1 or better.
+    @Test(arguments: Highlight.allCases, [ColorScheme.light, .dark])
+    func dayNumberReadsOnTheFill(highlight: Highlight, scheme: ColorScheme) {
+        let trait = UITraitCollection(userInterfaceStyle: scheme == .dark ? .dark : .light)
+        let fill = UIColor(highlight.color).resolvedColor(with: trait)
+        let text = UIColor(highlight.textOnFill(scheme)).resolvedColor(with: trait)
+        #expect(fill.contrastRatio(with: text) >= 4.5)
+    }
+
+    @Test func darkIndigoTakesDarkText() {
+        // Dark-mode indigo is #93A5FF: white on it is 2.3:1, black is 9.1:1.
+        #expect(Highlight.standard.textOnFill(.dark) == .black)
+        #expect(Highlight.standard.textOnFill(.light) == .white)
+    }
+}
+
