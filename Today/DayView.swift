@@ -294,7 +294,9 @@ private struct DayPage: View {
                         withAnimation { leftoversHiddenOn = today }
                     }
                 }
-                .listRowBackground(Rectangle().fill(.tint.opacity(0.12)))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             }
 
             TasksSection(day: day, today: today, tasks: TaskItem.ordered(tasks),
@@ -530,24 +532,46 @@ private struct LeftoversBanner: View {
     let yesterday: String
     let onBring: () -> Void
     let onDismiss: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
+        // A quiet prompt: the icon's grey past bar on the left ties it to yesterday.
+        HStack(alignment: .top, spacing: 12) {
+            Capsule()
+                .fill(.past)
+                .frame(width: 4)
+                .accessibilityHidden(true)
+            prompt
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var prompt: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("\(tasks.count) unfinished from \(DayKey.date(for: yesterday).formatted(.dateTime.weekday(.wide)))")
                 .font(.headline)
             Text(tasks.map(\.title).joined(separator: ", "))
                 .font(.detail)
                 .foregroundStyle(.secondary)
-                .lineLimit(2)
-            HStack(spacing: 12) {
-                Button("Bring to today", action: onBring)
-                    .buttonStyle(.borderedProminent)
-                Button("Not now", action: onDismiss)
-                    .buttonStyle(.borderless)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+            // Side by side, or stacked when large text won't fit them on one line.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) { buttons }
+                VStack(alignment: .leading, spacing: 8) { buttons }
             }
             .padding(.top, 4)
         }
         .padding(.vertical, 6)
+    }
+
+    @ViewBuilder private var buttons: some View {
+        Button(action: onBring) {
+            Text("Bring to today")
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .buttonStyle(.bordered)
+        Button("Not now", action: onDismiss)
+            .buttonStyle(.borderless)
     }
 }
 
