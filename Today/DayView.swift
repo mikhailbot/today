@@ -332,7 +332,7 @@ private struct DayProgress: View {
                 Capsule().fill(.future).frame(height: 3)
                 Capsule().fill(.past).frame(width: x, height: 3)
                 if showsNow {
-                    NowDot(size: 11).offset(x: x - 5.5)
+                    NowDot(size: 11, pulses: true).offset(x: x - 5.5)
                 }
             }
             .frame(maxHeight: .infinity)

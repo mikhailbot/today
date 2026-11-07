@@ -55,6 +55,8 @@ struct SectionHeading: View {
                 .font(.detail)
                 .foregroundStyle(.secondary)
                 .fixedSize()
+                .contentTransition(.numericText())
+                .animation(.snappy, value: detail)
         }
     }
 }

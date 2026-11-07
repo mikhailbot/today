@@ -35,7 +35,9 @@ struct EventsSection: View {
         .task(id: "\(day)|\(hiddenRaw)|\(calendar.revision)") {
             events = calendar.events(on: day, hidden: HiddenCalendars.decode(hiddenRaw))
         }
-        .onReceive(minuteTimer) { now = $0 }
+        .onReceive(minuteTimer) { date in
+            withAnimation(reduceMotion ? nil : .snappy) { now = date }
+        }
     }
 
     /// "3 to go" today, a plain count on other days.
@@ -161,6 +163,7 @@ struct EventsSection: View {
                 Text("\(Int((event.endDate.timeIntervalSince(now) / 60).rounded(.up))) min left")
                     .font(.detail)
                     .foregroundStyle(.tint)
+                    .contentTransition(.numericText(countsDown: true))
             }
         }
     }

@@ -22,15 +22,30 @@ extension Color {
     }
 }
 
-/// The dot that marks now, with its soft halo.
+/// The dot that marks now, with its soft halo. A pulsing dot sends a slow ripple out from the
+/// halo, like a clock ticking; it holds still when Reduce Motion is on.
 struct NowDot: View {
     var size: CGFloat = 10
+    var pulses = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Circle()
             .fill(.tint)
             .frame(width: size, height: size)
             .background(Circle().fill(.future).padding(-size * 0.3))
+            .background {
+                if pulses && !reduceMotion {
+                    PhaseAnimator([false, true]) { spread in
+                        Circle()
+                            .fill(.tint.opacity(0.4))
+                            .scaleEffect(spread ? 2.4 : 1)
+                            .opacity(spread ? 0 : 1)
+                    } animation: { spread in
+                        spread ? .easeOut(duration: 2.4) : nil
+                    }
+                }
+            }
     }
 }
 
@@ -41,7 +56,7 @@ struct NowLine: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            NowDot(size: dot)
+            NowDot(size: dot, pulses: true)
             Capsule()
                 .fill(.tint)
                 .frame(height: thickness)

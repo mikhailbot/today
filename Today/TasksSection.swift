@@ -92,6 +92,7 @@ private struct TaskRow: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
+            .sensoryFeedback(trigger: task.isDone) { _, done in done ? .success : .selection }
             .accessibilityLabel(task.isDone ? "Mark not done: \(task.title)" : "Mark done: \(task.title)")
 
             if isEditing {
@@ -149,6 +150,7 @@ private struct CheckMark: View {
                 // The page colour reads on the tint in light and dark alike.
                 .foregroundStyle(Color(.systemBackground))
                 .opacity(isDone ? 1 : 0)
+                .symbolEffect(.bounce, value: isDone)
         }
         .frame(width: size, height: size)
         .accessibilityHidden(true)
