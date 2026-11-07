@@ -182,7 +182,7 @@ private struct AboutView: View {
         List {
             Section {
                 VStack(spacing: 8) {
-                    AppMark(size: 80)
+                    AppMark(size: 80, animated: true)
                     Text("Today")
                         .font(.title2.bold())
                     Text("Your events and tasks for the day, in one place.")

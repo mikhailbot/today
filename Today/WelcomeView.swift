@@ -5,41 +5,49 @@ struct WelcomeView: View {
     @AppStorage("skippedCalendarAccess") private var skippedCalendarAccess = false
 
     var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            AppMark(size: 96)
-            VStack(spacing: 12) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                AppMark(size: 72, animated: true)
+                    .padding(.bottom, 8)
                 Text("Your day, in one place")
                     .font(.largeTitle.bold())
                 Text("Today shows events from the calendars already on this iPhone (iCloud, Google, Exchange) next to a short list of things to do.")
                     .foregroundStyle(.secondary)
+                Group {
+                    #if ICLOUD_SYNC
+                    Label("Events are only read. Tasks stay in your iCloud.", systemImage: "lock")
+                    #else
+                    Label("Events are only read. Tasks stay on this iPhone.", systemImage: "lock")
+                    #endif
+                }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             }
-            .multilineTextAlignment(.center)
-            Group {
-                #if ICLOUD_SYNC
-                Label("Events are only read, never changed or copied. Tasks stay in your iCloud.", systemImage: "lock")
-                #else
-                Label("Events are only read, never changed or copied. Tasks stay on this iPhone.", systemImage: "lock")
-                #endif
-            }
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .padding()
-            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 28)
+            .padding(.top, 72)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        // The choice stays in reach at the bottom, however large the text.
+        .safeAreaInset(edge: .bottom) {
             VStack(spacing: 12) {
                 Button {
                     Task { await calendar.requestAccess() }
                 } label: {
-                    Text("Allow calendar access").frame(maxWidth: .infinity)
+                    Text("Allow calendar access")
+                        .frame(maxWidth: .infinity)
+                        // White on the light dark-mode tint is too faint; the page colour reads on both.
+                        .foregroundStyle(Color(.systemBackground))
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 Button("Just tasks for now") { skippedCalendarAccess = true }
                     .controlSize(.large)
             }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+            .background(Color(.systemBackground))
         }
-        .padding(24)
-        .background(Color(.systemGroupedBackground))
+        .background(Color(.systemBackground))
     }
 }
