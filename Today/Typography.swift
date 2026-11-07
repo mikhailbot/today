@@ -9,25 +9,14 @@ extension Font {
     static let spokenDay = Font.subheadline.weight(.semibold)
     /// Section headings: "Calendar", "Tasks".
     static let sectionTitle = Font.title3.weight(.semibold)
-    /// Small uppercase labels: the weekday above the date and section headings. Use `eyebrow()`.
-    static let eyebrow = Font.footnote.weight(.semibold)
     /// Secondary row text: calendar and location, the leftovers list, the toast.
     static let detail = Font.subheadline
     /// Clock times, with digits that line up down the column.
     static let time = Font.footnote.monospacedDigit()
     /// Day numbers in the week strip.
     static let dayNumber = Font.callout.monospacedDigit()
-    /// The smallest marks: week strip letters and the now line.
+    /// The smallest marks: week strip letters.
     static let mark = Font.caption.weight(.semibold)
-}
-
-extension View {
-    /// The uppercase label style shared by the weekday above the date and every section heading.
-    func eyebrow() -> some View {
-        font(.eyebrow)
-            .textCase(.uppercase)
-            .tracking(0.4)
-    }
 }
 
 /// A section's heading: its name, and a short summary on the trailing side ("3 to go").

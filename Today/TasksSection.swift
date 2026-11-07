@@ -13,13 +13,23 @@ struct TasksSection: View {
     @FocusState private var addFocused: Bool
 
     private let rowInsets = EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 16)
+    /// Every row lifts as the same rounded shape when long-pressed, wherever it sits in the list.
+    private let liftShape = RoundedRectangle(cornerRadius: 14, style: .continuous)
     private var openCount: Int { tasks.filter { !$0.isDone }.count }
 
     var body: some View {
         Section {
             ForEach(tasks) { task in
                 TaskRow(task: task)
+                    // The lifted preview gets its own padding and corners instead of the list cell's,
+                    // which were rounded or square depending on the row's position.
+                    .padding(.horizontal, 8)
+                    .background(Color(.systemBackground))
+                    .contentShape(.contextMenuPreview, liftShape)
+                    .padding(.horizontal, -8)
                     .listRowInsets(rowInsets)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                     .contextMenu {
                         if !task.isDone {
                             Button("Tomorrow", systemImage: "arrow.right") {
@@ -34,16 +44,10 @@ struct TasksSection: View {
             }
             addRow
                 .listRowInsets(rowInsets)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
         } header: {
-            HStack {
-                Text("Tasks")
-                Spacer()
-                if !tasks.isEmpty {
-                    Text(openCount == 0 ? "All done" : "\(openCount) left")
-                }
-            }
-            .eyebrow()
-            .foregroundStyle(.secondary)
+            SectionHeading(title: "Tasks", detail: tasks.isEmpty ? nil : openCount == 0 ? "All done" : "\(openCount) left")
         }
     }
 
@@ -83,9 +87,7 @@ private struct TaskRow: View {
             Button {
                 withAnimation { task.isDone.toggle() }
             } label: {
-                Image(systemName: task.isDone ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: checkSize))
-                    .foregroundStyle(task.isDone ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                CheckMark(isDone: task.isDone, size: checkSize)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
@@ -103,7 +105,7 @@ private struct TaskRow: View {
                     .onAppear { DispatchQueue.main.async { focused = true } }
             } else {
                 Text(task.title)
-                    .strikethrough(task.isDone)
+                    .strikethrough(task.isDone, color: .secondary)
                     .foregroundStyle(task.isDone ? .secondary : .primary)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                     .contentShape(Rectangle())
@@ -127,5 +129,28 @@ private struct TaskRow: View {
         } else {
             task.title = title
         }
+    }
+}
+
+/// An open task is a ring in the icon's past grey; a done one fills with the tint, like the now dot.
+private struct CheckMark: View {
+    let isDone: Bool
+    let size: CGFloat
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .strokeBorder(isDone ? AnyShapeStyle(.clear) : AnyShapeStyle(Color(.tertiaryLabel)), lineWidth: 1.75)
+            Circle()
+                .fill(.tint)
+                .opacity(isDone ? 1 : 0)
+            Image(systemName: "checkmark")
+                .font(.system(size: size * 0.5, weight: .bold))
+                // The page colour reads on the tint in light and dark alike.
+                .foregroundStyle(Color(.systemBackground))
+                .opacity(isDone ? 1 : 0)
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
     }
 }
