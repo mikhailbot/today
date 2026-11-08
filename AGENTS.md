@@ -1,6 +1,10 @@
+# Where to work
+
+Work on this repo on the macOS runner `wip-amp-app`, not in an orb. Only that Mac has Xcode, the simulators and a cable to Mikhail's iPhone, so an orb can't build, run or verify the app.
+
 # Verifying changes
 
-Always verify every change on Mikhail's iPhone, not only in the simulator. Xcode is only on the macOS runner (`wip-amp-app`), so build and install from there.
+Always verify every change on Mikhail's iPhone, not only in the simulator. Build and install from `wip-amp-app`.
 
 - Find the phone with `xcrun devicectl list devices`.
 - Build for it with `xcodebuild`, using the project's signing team, then install and launch the app with `xcrun devicectl device install app` and `xcrun devicectl device process launch`.
