@@ -323,6 +323,9 @@ private struct DayPager: View {
     let onScrolled: (Bool) -> Void
 
     @State private var page: Int?
+    /// Set while a finger moves the pages or they settle. `page` follows them past halfway and back,
+    /// so the day only changes once they come to rest.
+    @State private var scrolling = false
 
     static let pages = -3650...3650
 
@@ -353,10 +356,12 @@ private struct DayPager: View {
         .scrollIndicators(.hidden)
         .scrollPosition(id: $page)
         .onAppear { page = DayKey.days(from: anchor, to: day) }
+        .onScrollingChange { scrolling in
+            self.scrolling = scrolling
+            if !scrolling { select(page) }
+        }
         .onChange(of: page) { _, page in
-            guard let page else { return }
-            let key = DayKey.adding(page, to: anchor)
-            if key != day { day = key }
+            if !scrolling { select(page) }
         }
         .onChange(of: day) { _, day in
             let target = DayKey.days(from: anchor, to: day)
@@ -368,6 +373,12 @@ private struct DayPager: View {
                 self.page = target
             }
         }
+    }
+
+    private func select(_ page: Int?) {
+        guard let page else { return }
+        let key = DayKey.adding(page, to: anchor)
+        if key != day { day = key }
     }
 }
 
@@ -684,6 +695,15 @@ extension View {
 }
 
 extension View {
+    /// Reports when the scroll view inside starts and stops moving, under a finger or settling. iOS 18 and later.
+    @ViewBuilder func onScrollingChange(_ action: @escaping (Bool) -> Void) -> some View {
+        if #available(iOS 18, *) {
+            onScrollPhaseChange { _, phase in action(phase.isScrolling) }
+        } else {
+            self
+        }
+    }
+
     /// Reports whether the scroll view inside has scrolled down from the top. iOS 18 and later.
     @ViewBuilder func onScrolledDown(_ action: @escaping (Bool) -> Void) -> some View {
         if #available(iOS 18, *) {
