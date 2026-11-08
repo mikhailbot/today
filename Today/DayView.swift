@@ -64,24 +64,33 @@ struct DayView: View {
             .background { LightStatusBar().frame(width: 0, height: 0) }
             .toolbar(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .bottom) {
-                ZStack(alignment: .bottomTrailing) {
+                ZStack(alignment: .bottom) {
                     VStack {
-                        if lastMove != nil {
-                            toast
-                        } else if day != today {
-                            todayPill
-                        }
+                        toast
                     }
                     .frame(maxWidth: .infinity)
-                    // Steps aside for the toast, which spans the bottom, and while typing a task.
-                    if lastMove == nil && !keyboardUp && calendar.hasAccess {
-                        AddEventButton { newEvent = ShownEvent(event: calendar.newEvent(on: day)) }
-                            // Grows with text up to here, then the large content viewer takes over.
-                            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                            .padding(.trailing, 20)
-                            .padding(.bottom, 8)
-                            .transition(.scale(scale: 0.8).combined(with: .opacity))
+                    // Both step aside for the toast, which spans the bottom.
+                    HStack(alignment: .bottom) {
+                        // While away from today, pointing the way back.
+                        if lastMove == nil && day != today {
+                            CornerButton(title: "Today",
+                                         systemImage: day > today ? "arrow.backward" : "arrow.forward") {
+                                day = today
+                            }
+                        }
+                        Spacer(minLength: 0)
+                        // Also steps aside while typing a task.
+                        if lastMove == nil && !keyboardUp && calendar.hasAccess {
+                            // A calendar, not a bare plus, since tasks are added in the list.
+                            CornerButton(title: "Add event", systemImage: "calendar.badge.plus") {
+                                newEvent = ShownEvent(event: calendar.newEvent(on: day))
+                            }
+                        }
                     }
+                    // Grows with text up to here, then the large content viewer takes over.
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 8)
                 }
                 .animation(.snappy, value: day == today)
             }
@@ -156,26 +165,6 @@ struct DayView: View {
         }
     }
 
-    /// Floats at the bottom while away from today, pointing the way back.
-    private var todayPill: some View {
-        Button {
-            day = today
-        } label: {
-            HStack(spacing: 5) {
-                if day > today { Image(systemName: "chevron.left").imageScale(.small) }
-                Text("Today")
-                if day < today { Image(systemName: "chevron.right").imageScale(.small) }
-            }
-            .font(.body.weight(.semibold))
-            .foregroundStyle(.tint)
-            .padding(.horizontal, 4)
-        }
-        .glassButton()
-        .buttonBorderShape(.capsule)
-        .padding(.bottom, 8)
-        .transition(.scale(scale: 0.8).combined(with: .opacity))
-    }
-
     /// "Friday" within the coming week, "Mon, Nov 9" further out.
     private func dayName(_ key: String) -> String {
         let date = DayKey.date(for: key)
@@ -210,27 +199,29 @@ struct DayView: View {
     }
 }
 
-/// Floats in the corner on every day; opens Apple's new-event editor on the day shown.
-private struct AddEventButton: View {
+/// A round glass button floating in a bottom corner: Today on the leading side, Add event on the trailing.
+private struct CornerButton: View {
+    let title: String
+    let systemImage: String
     let action: () -> Void
     /// The icon's area; the glass adds its own padding, for about 56 pt across.
     @ScaledMetric(relativeTo: .title2) private var size: CGFloat = 40
 
     var body: some View {
         Button(action: action) {
-            // A calendar, not a bare plus, since tasks are added in the list.
-            Image(systemName: "calendar.badge.plus")
+            Image(systemName: systemImage)
                 .font(.title2.weight(.medium))
                 .foregroundStyle(.tint)
                 .frame(width: size, height: size)
         }
-        // Quiet, like the settings button and the Today pill beside it.
+        // Quiet, like the settings button.
         .glassButton()
         .buttonBorderShape(.circle)
-        .accessibilityLabel("Add event")
+        .accessibilityLabel(title)
         .accessibilityShowsLargeContentViewer {
-            Label("Add event", systemImage: "calendar.badge.plus")
+            Label(title, systemImage: systemImage)
         }
+        .transition(.scale(scale: 0.8).combined(with: .opacity))
     }
 }
 
