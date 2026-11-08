@@ -345,10 +345,15 @@ private struct DayPager: View {
             LazyHStack(spacing: 0) {
                 ForEach(Self.pages, id: \.self) { n in
                     let key = DayKey.adding(n, to: anchor)
-                    DayPage(day: key, today: today,
-                            onMove: onMove, onPickMove: onPickMove, onPickEvent: onPickEvent)
-                        .onScrolledDown { if key == day { onScrolled($0) } }
-                        .containerRelativeFrame(.horizontal)
+                    // The stack makes each page one view whatever its body holds, so the lazy stack can
+                    // place pages by index. Without it, every update built the bodies of the thousands
+                    // of pages before the shown one to count them.
+                    ZStack {
+                        DayPage(day: key, today: today,
+                                onMove: onMove, onPickMove: onPickMove, onPickEvent: onPickEvent)
+                            .onScrolledDown { if key == day { onScrolled($0) } }
+                    }
+                    .containerRelativeFrame(.horizontal)
                 }
             }
             .scrollTargetLayout()
@@ -466,13 +471,21 @@ private struct WeekStrip: View {
 
     @Environment(\.theme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Namespace private var selection
     @ScaledMetric private var circle: CGFloat = 36
     @State private var width: CGFloat = 0
     /// How far the weeks are pulled sideways; the previous and next weeks sit just off screen.
     @State private var offset: CGFloat = 0
     /// The day the strip is drawn around; lags `day` while a week slides in.
-    @State private var shownDay: String?
+    @State private var shownDay: String
+
+    init(day: Binding<String>, today: String, load: [String: Load]) {
+        _day = day
+        self.today = today
+        self.load = load
+        // Starts on the day, so the first move to another week slides like every later one, rather
+        // than redrawing the strip under the selection's glide.
+        _shownDay = State(initialValue: day.wrappedValue)
+    }
 
     /// Unhurried and without overshoot, like Calendar.
     static let slide = Animation.spring(duration: 0.5, bounce: 0)
@@ -482,6 +495,7 @@ private struct WeekStrip: View {
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
             .overlay { page(-1).offset(x: -width) }
             .overlay { page(1).offset(x: width) }
+            .geometryGroup()
             .offset(x: offset)
             .clipped()
             .contentShape(Rectangle())
@@ -501,8 +515,7 @@ private struct WeekStrip: View {
                     slide(step) { day = DayKey.adding(step * 7, to: day) }
                 })
             .onChange(of: day) { _, new in
-                let shown = shownDay ?? new
-                let from = DayKey.week(containing: shown)[0]
+                let from = DayKey.week(containing: shownDay)[0]
                 let to = DayKey.week(containing: new)[0]
                 guard offset == 0, from != to else {
                     if offset == 0 { shownDay = new }
@@ -529,20 +542,33 @@ private struct WeekStrip: View {
         }
     }
 
-    /// The week `weeks` away from the shown one. A week holding `day` selects it; a neighbour
-    /// otherwise previews the same weekday.
+    /// The week `weeks` away from the shown one. A week holding `day` selects it; otherwise the shown
+    /// week keeps its day while the next slides in, and a neighbour previews the same weekday.
     private func page(_ weeks: Int) -> some View {
-        let start = DayKey.adding(weeks * 7, to: shownDay ?? day)
+        let start = DayKey.adding(weeks * 7, to: shownDay)
         let keys = DayKey.week(containing: start)
-        let picked = keys.contains(day) ? day : weeks == 0 ? nil : start
+        let picked = keys.contains(day) ? day : start
+        let index = CGFloat(keys.firstIndex(of: picked) ?? 0)
         return HStack(spacing: 0) {
-            ForEach(keys, id: \.self) { cell($0, selected: $0 == picked, glides: weeks == 0) }
+            ForEach(keys, id: \.self) { cell($0, selected: $0 == picked) }
         }
-        // The selection glides from day to day within the week.
-        .animation(reduceMotion ? nil : .spring(duration: 0.4, bounce: 0.22), value: day)
+        // One pill per week that moves to the selected day. Nothing is added or removed as the
+        // selection moves, so it glides within a week and rides along with a week sliding in.
+        .background(alignment: .leading) {
+            GeometryReader { geo in
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(theme.onSlab)
+                    .padding(.horizontal, 3)
+                    .frame(width: geo.size.width / 7)
+                    .offset(x: geo.size.width / 7 * index)
+            }
+        }
+        // The selection glides from day to day within the week. A neighbour's preview just switches
+        // while it's off screen.
+        .animation(reduceMotion || weeks != 0 ? nil : .spring(duration: 0.4, bounce: 0.22), value: day)
     }
 
-    private func cell(_ key: String, selected: Bool, glides: Bool) -> some View {
+    private func cell(_ key: String, selected: Bool) -> some View {
         let date = DayKey.date(for: key)
         let calendar = Calendar.current
         let letter = calendar.veryShortStandaloneWeekdaySymbols[calendar.component(.weekday, from: date) - 1]
@@ -570,14 +596,6 @@ private struct WeekStrip: View {
             }
             .padding(.vertical, 6)
             .frame(maxWidth: .infinity)
-            .background {
-                if selected {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(theme.onSlab)
-                        .padding(.horizontal, 3)
-                        .matchedSelection(glides, in: selection)
-                }
-            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -684,12 +702,5 @@ extension View {
         } else {
             self
         }
-    }
-}
-
-extension View {
-    /// Glides between days when on; a neighbouring week's preview keeps its own place.
-    @ViewBuilder fileprivate func matchedSelection(_ on: Bool, in namespace: Namespace.ID) -> some View {
-        if on { matchedGeometryEffect(id: "selected", in: namespace) } else { self }
     }
 }
