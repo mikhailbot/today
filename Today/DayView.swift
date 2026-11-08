@@ -514,7 +514,9 @@ private struct WeekStrip: View {
                         return
                     }
                     let step = dx < 0 ? 1 : -1
-                    slide(step) { day = DayKey.adding(step * 7, to: day) }
+                    // The day moves as the week is let go, so the selection rides in on it.
+                    day = DayKey.adding(step * 7, to: day)
+                    slide(step)
                 })
             .onChange(of: day) { _, new in
                 let from = DayKey.week(containing: shownDay)[0]
@@ -526,7 +528,7 @@ private struct WeekStrip: View {
                 // Paged into the next or previous week: slide it in. Further jumps just switch.
                 let step = to > from ? 1 : -1
                 if DayKey.adding(step * 7, to: from) == to {
-                    slide(step) {}
+                    slide(step)
                 } else {
                     shownDay = new
                 }
@@ -534,23 +536,23 @@ private struct WeekStrip: View {
     }
 
     /// Slides the neighbouring week in, then redraws around it with nothing moving.
-    private func slide(_ step: Int, then: @escaping () -> Void) {
+    private func slide(_ step: Int) {
         withAnimation(Self.slide, completionCriteria: .removed) {
             offset = CGFloat(-step) * width
         } completion: {
-            then()
             shownDay = day
             offset = 0
         }
     }
 
-    /// The week `weeks` away from the shown one. A week holding `day` selects it; otherwise the shown
-    /// week keeps its day while the next slides in, and a neighbour previews the same weekday.
+    /// The week `weeks` away from the shown one. Only a week holding `day` selects it, so one day shows
+    /// selected while weeks slide. When the pages move into another week, the shown week keeps its old
+    /// day until the slide starts.
     private func page(_ weeks: Int) -> some View {
         let start = DayKey.adding(weeks * 7, to: shownDay)
         let keys = DayKey.week(containing: start)
-        let picked = keys.contains(day) ? day : start
-        let index = CGFloat(keys.firstIndex(of: picked) ?? 0)
+        let picked = keys.contains(day) ? day : weeks == 0 && offset == 0 ? start : nil
+        let index = CGFloat(keys.firstIndex(of: picked ?? start) ?? 0)
         return HStack(spacing: 0) {
             ForEach(keys, id: \.self) { cell($0, selected: $0 == picked) }
         }
@@ -563,10 +565,12 @@ private struct WeekStrip: View {
                     .padding(.horizontal, 3)
                     .frame(width: geo.size.width / 7)
                     .offset(x: geo.size.width / 7 * index)
+                    .opacity(picked == nil ? 0 : 1)
             }
         }
-        // The selection glides from day to day within the week. A neighbour's preview just switches
-        // while it's off screen.
+        // The selection leaves and comes back at once rather than fading with the slide.
+        .animation(nil, value: picked == nil)
+        // The selection glides from day to day within the week.
         .animation(reduceMotion || weeks != 0 ? nil : .spring(duration: 0.4, bounce: 0.22), value: day)
     }
 
