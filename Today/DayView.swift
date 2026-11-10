@@ -411,35 +411,37 @@ private struct DayPage: View {
     }
 
     var body: some View {
-        List {
-            EventsSection(day: day, today: today, onPickEvent: onPickEvent)
-                .listRowBackground(Color.clear)
+        ScrollViewReader { proxy in
+            List {
+                EventsSection(day: day, today: today, onPickEvent: onPickEvent)
+                    .listRowBackground(Color.clear)
 
-            if day == today && !leftovers.isEmpty && leftoversHiddenOn != today {
-                Section {
-                    LeftoversBanner(tasks: leftovers, yesterday: DayKey.adding(-1, to: today)) {
-                        withAnimation { leftovers.forEach { $0.day = today } }
-                    } onDismiss: {
-                        withAnimation { leftoversHiddenOn = today }
+                if day == today && !leftovers.isEmpty && leftoversHiddenOn != today {
+                    Section {
+                        LeftoversBanner(tasks: leftovers, yesterday: DayKey.adding(-1, to: today)) {
+                            withAnimation { leftovers.forEach { $0.day = today } }
+                        } onDismiss: {
+                            withAnimation { leftoversHiddenOn = today }
+                        }
                     }
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-            }
 
-            TasksSection(day: day, today: today, tasks: TaskItem.ordered(tasks),
-                         onMove: onMove, onPickMove: onPickMove)
+                TasksSection(day: day, today: today, tasks: TaskItem.ordered(tasks), scroll: proxy,
+                             onMove: onMove, onPickMove: onPickMove)
+            }
+            // Grouped, not inset grouped: rows sit on the page with no card, and an inset-grouped section
+            // rounds the top of its first cell, which showed through as larger corners on a lifting row.
+            .listStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .environment(\.defaultMinListRowHeight, 0)
+            // Rows sit straight on the page, so their text lines up with the header's 20 pt margin.
+            .contentMargins(.horizontal, 4, for: .scrollContent)
+            .contentMargins(.top, 4, for: .scrollContent)
+            .scrollDismissesKeyboard(.interactively)
         }
-        // Grouped, not inset grouped: rows sit on the page with no card, and an inset-grouped section
-        // rounds the top of its first cell, which showed through as larger corners on a lifting row.
-        .listStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .environment(\.defaultMinListRowHeight, 0)
-        // Rows sit straight on the page, so their text lines up with the header's 20 pt margin.
-        .contentMargins(.horizontal, 4, for: .scrollContent)
-        .contentMargins(.top, 4, for: .scrollContent)
-        .scrollDismissesKeyboard(.interactively)
     }
 }
 

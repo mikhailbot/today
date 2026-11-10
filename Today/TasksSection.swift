@@ -5,6 +5,8 @@ struct TasksSection: View {
     let day: String
     let today: String
     let tasks: [TaskItem]
+    /// Keeps the add row in view as new tasks push it down under the keyboard.
+    let scroll: ScrollViewProxy
     let onMove: (TaskItem, String) -> Void
     let onPickMove: (TaskItem) -> Void
 
@@ -16,6 +18,7 @@ struct TasksSection: View {
     private let liftInsets = EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8)
     /// Every row lifts as the same rounded shape when long-pressed, wherever it sits in the list.
     private let liftShape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+    private let addRowID = "addRow"
     private var openCount: Int { tasks.filter { !$0.isDone }.count }
 
     var body: some View {
@@ -44,6 +47,12 @@ struct TasksSection: View {
                     }
             }
             addRow
+                .id(addRowID)
+                // Once the new task is in the list, not when it's inserted: the query catches up a
+                // moment later, and scrolling before that leaves the add row a row short, under the keyboard.
+                .onChange(of: tasks.count) { old, new in
+                    if new > old && addFocused { withAnimation { scroll.scrollTo(addRowID) } }
+                }
                 .listRowInsets(rowInsets)
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
@@ -59,10 +68,14 @@ struct TasksSection: View {
                 .foregroundStyle(.tint)
                 .frame(width: 44, height: 44)
                 .accessibilityHidden(true)
-            TextField(placeholder, text: $newTitle)
+            // A single-line field always drops the keyboard on Return. This one is vertical, so
+            // Return types a newline instead; that newline adds the task and the keyboard stays up.
+            TextField(placeholder, text: $newTitle, axis: .vertical)
                 .focused($addFocused)
                 .submitLabel(.done)
-                .onSubmit(add)
+                .onChange(of: newTitle) { _, text in
+                    if text.contains(where: \.isNewline) { add() }
+                }
         }
     }
 
@@ -74,11 +87,12 @@ struct TasksSection: View {
     }
 
     private func add() {
-        let title = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !title.isEmpty else { return }
-        withAnimation { context.insert(TaskItem(title: title, day: day)) }
+        let title = newTitle.split(whereSeparator: \.isNewline).joined(separator: " ")
+            .trimmingCharacters(in: .whitespaces)
         newTitle = ""
-        DispatchQueue.main.async { addFocused = true }
+        // Return on an empty field is how you finish: it puts the keyboard away.
+        guard !title.isEmpty else { addFocused = false; return }
+        withAnimation { context.insert(TaskItem(title: title, day: day)) }
     }
 }
 
