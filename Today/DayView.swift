@@ -43,19 +43,8 @@ struct DayView: View {
             }
             .onChange(of: day) { withAnimation(reduceMotion ? nil : .snappy) { headerCollapsed = false } }
             .environment(\.onAllDone, {
-                withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.4, bounce: 0.3)) { celebrating = true }
+                withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.45, bounce: 0.45)) { celebrating = true }
             })
-            .overlay {
-                if celebrating {
-                    AllDoneCelebration()
-                        .transition(reduceMotion ? .opacity : .scale(scale: 0.85).combined(with: .opacity))
-                        .task {
-                            try? await Task.sleep(for: .seconds(2.6))
-                            withAnimation(.easeIn(duration: 0.3)) { celebrating = false }
-                        }
-                        .onTapGesture { withAnimation { celebrating = false } }
-                }
-            }
             // The theme's ink for the page's text. Not set at the root: a foreground style overrides the tint,
             // which would take it off buttons and icons in sheets.
             .foregroundStyle(.ink, .secondaryInk, .tertiaryInk)
@@ -91,6 +80,20 @@ struct DayView: View {
                     .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 8)
+                }
+                // Between the corner buttons, over the day rather than pushing it up.
+                .overlay(alignment: .bottom) {
+                    if celebrating {
+                        AllDoneCelebration()
+                            .padding(.bottom, 14)
+                            .transition(reduceMotion ? .opacity
+                                : .offset(y: 40).combined(with: .scale(scale: 0.6)).combined(with: .opacity))
+                            .task {
+                                try? await Task.sleep(for: .seconds(2.4))
+                                withAnimation(.easeIn(duration: 0.25)) { celebrating = false }
+                            }
+                            .onTapGesture { withAnimation(.easeIn(duration: 0.2)) { celebrating = false } }
+                    }
                 }
                 .animation(.snappy, value: day == today)
             }
@@ -214,7 +217,6 @@ private struct CornerButton: View {
                 .foregroundStyle(.tint)
                 .frame(width: size, height: size)
         }
-        // Quiet, like the settings button.
         .glassButton()
         .buttonBorderShape(.circle)
         .accessibilityLabel(title)

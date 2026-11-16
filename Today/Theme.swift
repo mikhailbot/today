@@ -116,6 +116,10 @@ enum Theme: String, CaseIterable, Identifiable {
         })
     }
 
+    /// Quiet things on the slab, such as the settings gear: the mark's light future tint, which reads
+    /// on the slab in both appearances without competing with its text.
+    var softOnSlab: Color { Color(uiColor: UIColor(hex: palette(.light).future)) }
+
     /// The now dot on the slab: the text colour, except Graphite keeps its one red mark for now.
     var nowOnSlab: Color {
         self == .graphite ? Color(uiColor: UIColor(hex: palette(.dark).now)) : onSlab
@@ -166,9 +170,12 @@ extension View {
             .presentationBackground(.paper)
     }
 
-    /// Rows on the theme's card colour, for the sections of a themed sheet.
+    /// Rows on the theme's card colour over its paper, for a list in a themed sheet. Sets the paper
+    /// itself too, since a page pushed inside the sheet draws its own background over the sheet's.
     func themedRows() -> some View {
         listRowBackground(Rectangle().fill(.card))
+            .scrollContentBackground(.hidden)
+            .background(.paper)
     }
 }
 

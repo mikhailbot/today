@@ -52,14 +52,17 @@ struct DayHeader: View {
             .accessibilityAddTraits(.isHeader)
             .accessibilityHint("Choose a day")
             Spacer(minLength: 12)
+            // A bare, filled gear in the slab's soft tint: there when you look for it, quieter than the date.
             Button(action: onSettings) {
-                Image(systemName: "gearshape")
-                    .font(.body.weight(.medium))
-                    .frame(width: 22, height: 22)
+                Image(systemName: "gearshape.fill")
+                    .font(.title2)
+                    .foregroundStyle(theme.softOnSlab)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
-            .glassButton()
-            .tint(theme.onSlab)
-            .buttonBorderShape(.circle)
+            .buttonStyle(.plain)
+            // Centred over the week strip's last day, where the old round button sat.
+            .padding(.top, collapsed ? 0 : -4)
             .accessibilityLabel("Settings")
         }
     }

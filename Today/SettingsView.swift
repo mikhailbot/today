@@ -21,17 +21,21 @@ struct SettingsView: View {
                             Label("Calendars", systemImage: "calendar")
                         }
                     }
-                    NavigationLink {
-                        SyncSettings()
-                    } label: {
-                        LabeledContent { Text(SyncSettings.isOn ? "On" : "Off") } label: {
-                            Label("Sync", systemImage: "icloud")
-                        }
+                    // Only a status: sync follows the build and the iPhone's iCloud account, so there's
+                    // nothing to choose and no page to open.
+                    LabeledContent { Text(syncIsOn ? "On" : "Off") } label: {
+                        Label("iCloud sync", systemImage: "icloud")
                     }
+                } footer: {
+                    #if ICLOUD_SYNC
+                    Text("Tasks sync with the iCloud account on this iPhone. Events come from the accounts in the Calendar app.")
+                    #else
+                    Text("Tasks are stored on this iPhone only. Events come from the accounts in the Calendar app.")
+                    #endif
                 }
                 Section {
-                    Picker(selection: $appearance) {
-                        ForEach(Appearance.allCases) { Text($0.name).tag($0) }
+                    LabeledContent {
+                        AppearanceToggle(selected: $appearance)
                     } label: {
                         Label("Appearance", systemImage: "circle.lefthalf.filled")
                     }
@@ -59,6 +63,14 @@ struct SettingsView: View {
         .themedSheet()
     }
 
+    private var syncIsOn: Bool {
+        #if ICLOUD_SYNC
+        FileManager.default.ubiquityIdentityToken != nil
+        #else
+        false
+        #endif
+    }
+
     private var calendarsSummary: String {
         guard calendar.hasAccess else { return "Off" }
         let all = calendar.calendars().map(\.calendarIdentifier)
@@ -67,84 +79,137 @@ struct SettingsView: View {
     }
 }
 
-/// Each theme as a small preview of its day, on its own paper.
+/// System, light or dark as three icons on a small track, with a knob of the accent that slides to
+/// the one chosen: one tap rather than a menu.
+private struct AppearanceToggle: View {
+    @Binding var selected: Appearance
+    @Namespace private var knob
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(Appearance.allCases) { option in
+                let isOn = option == selected
+                Button {
+                    withAnimation(.spring(duration: 0.35, bounce: 0.3)) { selected = option }
+                } label: {
+                    Image(systemName: option.symbol)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(isOn ? AnyShapeStyle(.onAccent) : AnyShapeStyle(.secondaryInk))
+                        .symbolEffect(.bounce, value: isOn)
+                        .frame(width: 38, height: 30)
+                        .background {
+                            if isOn {
+                                Capsule().fill(.tint).matchedGeometryEffect(id: "knob", in: knob)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(option.name)
+                .accessibilityAddTraits(isOn ? .isSelected : [])
+            }
+        }
+        .padding(3)
+        .background(.past, in: Capsule())
+        .sensoryFeedback(.selection, trigger: selected)
+    }
+}
+
+private extension Appearance {
+    var symbol: String {
+        switch self {
+        case .system: "circle.lefthalf.filled"
+        case .light: "sun.max.fill"
+        case .dark: "moon.fill"
+        }
+    }
+}
+
+/// Each theme as its own day in miniature, like a tiny phone: the slab with the date and its now dot,
+/// then the mark's past, now and future on the paper. The chosen one lifts, ringed in its accent,
+/// and its mark draws itself in again.
 private struct ThemePicker: View {
     @Binding var selected: Theme
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 12)], spacing: 14) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 88), spacing: 12)], spacing: 14) {
             ForEach(Theme.allCases) { theme in
+                let isOn = theme == selected
                 Button {
-                    withAnimation(.snappy) { selected = theme }
+                    withAnimation(.spring(duration: 0.4, bounce: 0.35)) { selected = theme }
                 } label: {
-                    VStack(spacing: 6) {
-                        ThemePreview(isSelected: theme == selected)
+                    VStack(spacing: 8) {
+                        ThemeDay(isSelected: isOn)
                             .environment(\.theme, theme)
                             .tint(theme.color(\.accent))
-                        HStack(spacing: 4) {
-                            Text(theme.name)
-                            if theme == selected {
-                                Image(systemName: "checkmark")
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(.tint)
-                            }
-                        }
-                        .font(.detail.weight(theme == selected ? .semibold : .regular))
+                        Text(theme.name)
+                            .font(.detail.weight(isOn ? .semibold : .regular))
+                            .foregroundStyle(isOn ? AnyShapeStyle(theme.color(\.accent)) : AnyShapeStyle(.secondaryInk))
                     }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(theme.name)
-                .accessibilityAddTraits(theme == selected ? .isSelected : [])
+                .accessibilityAddTraits(isOn ? .isSelected : [])
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 10)
+        .sensoryFeedback(.selection, trigger: selected)
     }
 }
 
-/// A theme's day in miniature: the mark as the day's progress, a finished event, the now line,
-/// the next event, and a ticked and an open task.
-private struct ThemePreview: View {
+/// One theme's day: its slab over its paper, in whichever appearance is showing.
+private struct ThemeDay: View {
     let isSelected: Bool
+    @Environment(\.theme) private var theme
+    @State private var reveal = 1.0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let tile = RoundedRectangle(cornerRadius: 14, style: .continuous)
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 0) {
-                Capsule().fill(.past).frame(width: 30, height: 3)
-                Circle().fill(.now).frame(width: 7, height: 7)
-                    .background(Circle().fill(.now.opacity(0.25)).padding(-2))
-                Capsule().fill(.future).frame(height: 3)
+        let card = RoundedRectangle(cornerRadius: 16, style: .continuous)
+        VStack(spacing: 0) {
+            HStack(alignment: .center, spacing: 5) {
+                Text("14")
+                    .font(.system(size: 24, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                VStack(alignment: .leading, spacing: 3) {
+                    Circle().fill(theme.nowOnSlab).frame(width: 5, height: 5)
+                    Capsule().fill(theme.onSlab.opacity(0.85)).frame(width: 22, height: 4)
+                    Capsule().fill(theme.onSlab.opacity(0.5)).frame(width: 14, height: 4)
+                }
+                Spacer(minLength: 0)
             }
-            .padding(.bottom, 2)
-            row(Capsule().fill(.past).frame(width: 2.5, height: 9), line: .tertiaryInk, width: 0.55)
-            HStack(spacing: 0) {
-                Circle().fill(.now).frame(width: 5, height: 5)
-                Capsule().fill(.now).frame(height: 1.5)
+            .foregroundStyle(theme.onSlab)
+            .padding(.horizontal, 10)
+            .padding(.top, 10)
+            .padding(.bottom, 8)
+            .frame(maxWidth: .infinity)
+            .background {
+                UnevenRoundedRectangle(bottomLeadingRadius: 10, bottomTrailingRadius: 10, style: .continuous)
+                    .fill(theme.slab.gradient)
             }
-            row(Capsule().fill(.orange).frame(width: 2.5, height: 9), line: .ink, width: 0.8)
-            row(Circle().fill(.tint).frame(width: 9, height: 9), line: .secondaryInk, width: 0.5)
-            row(Circle().strokeBorder(.tertiaryInk, lineWidth: 1).frame(width: 9, height: 9), line: .ink, width: 0.7)
+            AppMarkGlyph(reveal: reveal)
+                .frame(height: 30)
+                .padding(.vertical, 9)
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.paper, in: tile)
+        .background(.paper)
+        .clipShape(card)
+        .overlay(card.strokeBorder(Color(.separator), lineWidth: 0.5))
+        .padding(3)
         .overlay {
-            tile.strokeBorder(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(Color(.separator)),
-                              lineWidth: isSelected ? 2 : 0.5)
+            RoundedRectangle(cornerRadius: 19, style: .continuous)
+                .strokeBorder(.tint, lineWidth: 2.5)
+                .opacity(isSelected ? 1 : 0)
+        }
+        .scaleEffect(isSelected ? 1 : 0.93)
+        .offset(y: isSelected ? -2 : 0)
+        .shadow(color: .black.opacity(isSelected ? 0.12 : 0), radius: 8, y: 4)
+        .onChange(of: isSelected) { _, chosen in
+            guard chosen, !reduceMotion else { return }
+            reveal = 0
+            withAnimation(.easeOut(duration: 0.9).delay(0.1)) { reveal = 1 }
         }
         .accessibilityHidden(true)
-    }
-
-    /// A marker, then a line of "text" taking `width` of what's left.
-    private func row(_ marker: some View, line: ThemeColor, width: CGFloat) -> some View {
-        HStack(spacing: 5) {
-            marker.frame(width: 9)
-            GeometryReader { geo in
-                Capsule().fill(line).frame(width: geo.size.width * width, height: 4)
-                    .frame(maxHeight: .infinity)
-            }
-            .frame(height: 9)
-        }
     }
 }
 
@@ -200,38 +265,6 @@ private struct CalendarsSettings: View {
             if isShown { hidden.remove(id) } else { hidden.insert(id) }
             hiddenRaw = HiddenCalendars.encode(hidden)
         }
-    }
-}
-
-private struct SyncSettings: View {
-    static var isOn: Bool {
-        #if ICLOUD_SYNC
-        FileManager.default.ubiquityIdentityToken != nil
-        #else
-        false
-        #endif
-    }
-
-    var body: some View {
-        List {
-            Section {
-                LabeledContent("iCloud sync", value: Self.isOn ? "On" : "Off")
-            } footer: {
-                #if ICLOUD_SYNC
-                Text("Tasks sync with the iCloud account signed in on this iPhone. Change it in the Settings app.")
-                #else
-                Text("Tasks are stored on this iPhone only.")
-                #endif
-            }
-            Section {
-                LabeledContent("Calendar events", value: "From iOS")
-            } footer: {
-                Text("Events come from the accounts in the Calendar app and stay in sync with them.")
-            }
-        }
-        .themedRows()
-        .navigationTitle("Sync")
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
